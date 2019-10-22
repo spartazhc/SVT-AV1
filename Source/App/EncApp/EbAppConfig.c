@@ -65,6 +65,7 @@
 #define SEPERATE_FILDS_TOKEN            "-separate-fields"
 #define INTRA_REFRESH_TYPE_TOKEN        "-irefresh-type" // no Eval
 #define LOOP_FILTER_DISABLE_TOKEN       "-dlf"
+#define RESTORATION_ENABLE_TOKEN        "-restoration-filtering"
 #define LOCAL_WARPED_ENABLE_TOKEN       "-local-warp"
 #define GLOBAL_MOTION_ENABLE_TOKEN      "-global-motion"
 #define OBMC_TOKEN                      "-obmc"
@@ -249,6 +250,7 @@ static void SetCfgFilmGrain                     (const char *value, EbConfig *cf
 static void SetDisableDlfFlag                   (const char *value, EbConfig *cfg) {cfg->disable_dlf_flag = (EbBool)strtoul(value, NULL, 0);};
 static void SetEnableLocalWarpedMotionFlag      (const char *value, EbConfig *cfg) {cfg->enable_warped_motion = (EbBool)strtoul(value, NULL, 0);};
 static void SetEnableGlobalMotionFlag           (const char *value, EbConfig *cfg) {cfg->enable_global_motion = (EbBool)strtoul(value, NULL, 0);};
+static void SetEnableRestorationFilterFlag      (const char *value, EbConfig *cfg) {cfg->enable_restoration_filtering = strtol(value, NULL, 0);};
 static void SetEnableObmcFlag                   (const char *value, EbConfig *cfg) {cfg->enable_obmc = (EbBool)strtoul(value, NULL, 0);};
 static void SetEnableRdoqFlag                   (const char *value, EbConfig *cfg) {cfg->enable_rdoq = strtol(value, NULL, 0);};
 static void SetEnableFilterIntraFlag            (const char *value, EbConfig *cfg) {cfg->enable_filter_intra = (EbBool)strtoul(value, NULL, 0);};
@@ -445,6 +447,10 @@ config_entry_t config_entry[] = {
 
     // DLF
     { SINGLE_INPUT, LOOP_FILTER_DISABLE_TOKEN, "LoopFilterDisable", SetDisableDlfFlag },
+
+    // RESTORATION
+    { SINGLE_INPUT, RESTORATION_ENABLE_TOKEN, "RestorationFilter", SetEnableRestorationFilterFlag },
+
     // LOCAL WARPED MOTION
     { SINGLE_INPUT, LOCAL_WARPED_ENABLE_TOKEN, "LocalWarpedMotion", SetEnableLocalWarpedMotionFlag },
     // GLOBAL MOTION
@@ -553,6 +559,7 @@ void eb_config_ctor(EbConfig *config_ptr)
     config_ptr->hierarchical_levels                   = 4;
     config_ptr->pred_structure                        = 2;
     config_ptr->enable_global_motion                 = EB_TRUE;
+    config_ptr->enable_restoration_filtering         = AUTO_MODE;
     config_ptr->enable_obmc                          = EB_TRUE;
     config_ptr->enable_rdoq                          = AUTO_MODE;
     config_ptr->enable_filter_intra                  = EB_TRUE;
@@ -929,6 +936,12 @@ static EbErrorType VerifySettings(EbConfig *config, uint32_t channelNumber)
         fprintf(config->error_log_file, "Error instance %u: Invalid target_socket [-1 - 1], your input: %d\n", channelNumber + 1, config->target_socket);
         return_error = EB_ErrorBadParameter;
     }
+
+     // Restoration Filtering
+     if (config->enable_restoration_filtering != 0 && config->enable_restoration_filtering != 1 && config->enable_restoration_filtering != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid restoration flag [0 - 1, -1 for auto], your input: %d\n", channelNumber + 1, config->enable_restoration_filtering);
+         return_error = EB_ErrorBadParameter;
+     }
 
     // Local Warped Motion
     if (config->enable_warped_motion != 0 && config->enable_warped_motion != 1) {
