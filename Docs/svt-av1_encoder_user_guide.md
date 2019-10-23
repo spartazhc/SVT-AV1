@@ -155,6 +155,22 @@ The encoder parameters present in the `Sample.cfg` file are listed in this table
 | **LocalWarpedMotion** | -local-warp | [0 - 1] | 0 | Enable warped motion use , 0 = OFF, 1 = ON |
 | **RDOQ** | -rdoq | [0/1, -1 for auto] | AUTO | Enable RDOQ, 0 = OFF, 1 = ON, -1 = AUTO |
 | **RestorationFilter** | -restoration-filtering | [0/1, -1 for auto] | AUTO | Enable restoration filtering , 0 = OFF, 1 = ON, -1 = AUTO|
+| **FrameEndCdfUpdate** | -framend-cdf-upd-mode | [0/1, -1 for auto] | AUTO | Enable frame end cdf update mode, 0 = OFF, 1 = ON, -1 = AUTO|
+| **CombineClass12** | -class-12 | [0/1, -1 for auto] | AUTO | Enable combine MD Class1&2, 0 = OFF, 1 = ON, -1 = AUTO|
+| **EdgeSkipAngleIntra** | --intra-edge-skp | [0/1, -1 for auto] | AUTO | Enable skip angle intra based on edge, 0 = OFF, 1 = ON, -1 = AUTO|
+| **InterIntraCompound** | -interintra-comp | [0/1, -1 for auto] | AUTO | Enable inter intra compound, 0 = OFF, 1 = ON, -1 = AUTO|
+| **FractionalSearch64** | -frac-search-64 | [0/1, -1 for auto] | AUTO | Enable fractional search for 64x64, 0 = OFF, 1 = ON, -1 = AUTO|
+| **Mfmv** | -mfmv | [0/1, -1 for auto] | AUTO | Enable motion field motion vector, 0 = OFF, 1 = ON, -1 = AUTO|
+| **RedundantBlock** | -redundant-blk | [0/1, -1 for auto] | AUTO | Enable redundant block, 0 = OFF, 1 = ON, -1 = AUTO|
+| **Trellis** | -trellis | [0/1, -1 for auto] | AUTO | Enable trellis quant coefficient optimization, 0 = OFF, 1 = ON, -1 = AUTO|
+| **SpatialSSEfl** | -spatial-sse-fl | [0/1, -1 for auto] | AUTO | Enable spatial sse full loop, 0 = OFF, 1 = ON, -1 = AUTO|
+| **Subpel** | -subpel | [0/1, -1 for auto] | AUTO | Enable subpel, 0 = OFF, 1 = ON, -1 = AUTO|
+| **OverBoundryBlock** | -over-bndry-blk | [0/1, -1 for auto] | AUTO | Enable over boundary block mode, 0 = OFF, 1 = ON, -1 = AUTO|
+| **NewNearestCombInjection** | -new-nrst-near-comb | [0/1, -1 for auto] | AUTO | Enable new nearest near comb injection, 0 = OFF, 1 = ON, -1 = AUTO|
+| **nx4ParentMvInjection** | -nx4-4xn-mv-inject | [0/1, -1 for auto] | AUTO | Enable nx4 4xn parent mv injection, 0 = OFF, 1 = ON, -1 = AUTO|
+| **PruneUnipredMe** | -prune-unipred-me | [0/1, -1 for auto] | AUTO | Enable prune unipred at me, 0 = OFF, 1 = ON, -1 = AUTO|
+| **PruneRefRecPart** | -prune-ref-rec-part | [0/1, -1 for auto] | AUTO | Enable prune prune ref frame for rec partitions, 0 = OFF, 1 = ON, -1 = AUTO|
+| **NsqTable** | --nsq-table-use | [0/1, -1 for auto] | AUTO | Enable nsq table, 0 = OFF, 1 = ON, -1 = AUTO|
 | **ExtBlockFlag** | -ext-block | [0 - 1] | Depends on –enc-mode | Enable the non-square block 0=OFF, 1= ON |
 | **ScreenContentMode** | -scm | [0 - 2] | 2 | Enable Screen Content Optimization mode (0: OFF, 1: ON, 2: Content Based Detection) |
 | **SearchAreaWidth** | -search-w | [1 - 256] | Depends on input resolution | Search Area in Width |

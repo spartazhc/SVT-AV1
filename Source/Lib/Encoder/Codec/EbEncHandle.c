@@ -2024,15 +2024,22 @@ void SetParamBasedOnInput(SequenceControlSet *sequence_control_set_ptr)
     // Set over_boundary_block_mode     Settings
     // 0                            0: not allowed
     // 1                            1: allowed
-    if (sequence_control_set_ptr->static_config.enc_mode == ENC_M0)
-        sequence_control_set_ptr->over_boundary_block_mode = 1;
+    if (sequence_control_set_ptr->static_config.over_bndry_blk == AUTO_MODE)
+        if (sequence_control_set_ptr->static_config.enc_mode == ENC_M0)
+            sequence_control_set_ptr->over_boundary_block_mode = 1;
+        else
+            sequence_control_set_ptr->over_boundary_block_mode = 0;
     else
-        sequence_control_set_ptr->over_boundary_block_mode = 0;
+        sequence_control_set_ptr->over_boundary_block_mode = sequence_control_set_ptr->static_config.over_bndry_blk;
+
+    if (sequence_control_set_ptr->static_config.enable_mfmv == AUTO_MODE)
 #if M0_OPT
-    sequence_control_set_ptr->mfmv_enabled = (uint8_t)(sequence_control_set_ptr->static_config.enc_mode == ENC_M0 && sequence_control_set_ptr->static_config.screen_content_mode != 1) ? 1 : 0;
+        sequence_control_set_ptr->mfmv_enabled = (uint8_t)(sequence_control_set_ptr->static_config.enc_mode == ENC_M0 && sequence_control_set_ptr->static_config.screen_content_mode != 1) ? 1 : 0;
 #else
-    sequence_control_set_ptr->mfmv_enabled = (uint8_t)(sequence_control_set_ptr->static_config.enc_mode == ENC_M0) ? 1 : 0;
+        sequence_control_set_ptr->mfmv_enabled = (uint8_t)(sequence_control_set_ptr->static_config.enc_mode == ENC_M0) ? 1 : 0;
 #endif
+    else
+        sequence_control_set_ptr->mfmv_enabled = sequence_control_set_ptr->static_config.enable_mfmv;
 
     // Set hbd_mode_decision OFF for high encode modes or bitdepth < 10
     if (sequence_control_set_ptr->static_config.enc_mode > ENC_M0 || sequence_control_set_ptr->static_config.encoder_bit_depth < 10)
@@ -2120,6 +2127,39 @@ void CopyApiFromApp(
 
     // Restoration filtering
     sequence_control_set_ptr->static_config.enable_restoration_filtering = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_restoration_filtering;
+
+    //combine class 12
+    sequence_control_set_ptr->static_config.combine_class_12             = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->combine_class_12;
+    // edge skip angle intra
+    sequence_control_set_ptr->static_config.edge_skp_angle_intra         = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->edge_skp_angle_intra;
+    // inter intra compoound
+    sequence_control_set_ptr->static_config.inter_intra_compound         = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->inter_intra_compound;
+    // fractional search 64x64
+    sequence_control_set_ptr->static_config.fract_search_64              = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->fract_search_64;
+    // motion field motion vector
+    sequence_control_set_ptr->static_config.enable_mfmv                  = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_mfmv;
+    // redundant block
+    sequence_control_set_ptr->static_config.enable_redundant_blk         = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_redundant_blk;
+    //trellis
+    sequence_control_set_ptr->static_config.enable_trellis               = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_trellis;
+    // spatial sse in full loop
+    sequence_control_set_ptr->static_config.spatial_sse_fl               = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->spatial_sse_fl;
+    // subpel
+    sequence_control_set_ptr->static_config.enable_subpel                = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_subpel;
+    // over boundry block mode
+    sequence_control_set_ptr->static_config.over_bndry_blk               = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->over_bndry_blk;
+    // new nearest comb injection
+    sequence_control_set_ptr->static_config.new_nearest_comb_inject      = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->new_nearest_comb_inject;
+    // nx4 4xn parent mv injection
+    sequence_control_set_ptr->static_config.nx4_4xn_parent_mv_inject     = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->nx4_4xn_parent_mv_inject;
+    // prune unipred at me
+    sequence_control_set_ptr->static_config.prune_unipred_me             = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->prune_unipred_me;
+    //prune ref frame for rec partitions
+    sequence_control_set_ptr->static_config.prune_ref_rec_part           = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->prune_ref_rec_part;
+    // NSQ table
+    sequence_control_set_ptr->static_config.nsq_table                    = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->nsq_table;
+    // frame end cdf update mode
+    sequence_control_set_ptr->static_config.frame_end_cdf_update         = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->frame_end_cdf_update;
 
     // OBMC
     sequence_control_set_ptr->static_config.enable_obmc = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_obmc;
@@ -2677,6 +2717,22 @@ EbErrorType eb_svt_enc_init_parameter(
     config_ptr->enable_warped_motion = EB_TRUE;
     config_ptr->enable_global_motion = EB_TRUE;
     config_ptr->enable_restoration_filtering = AUTO_MODE;
+    config_ptr->edge_skp_angle_intra = AUTO_MODE;
+    config_ptr->combine_class_12 = AUTO_MODE;
+    config_ptr->inter_intra_compound = AUTO_MODE;
+    config_ptr->fract_search_64 = AUTO_MODE;
+    config_ptr->enable_mfmv = AUTO_MODE;
+    config_ptr->enable_redundant_blk = AUTO_MODE;
+    config_ptr->enable_trellis = AUTO_MODE;
+    config_ptr->spatial_sse_fl = AUTO_MODE;
+    config_ptr->enable_subpel = AUTO_MODE;
+    config_ptr->over_bndry_blk = AUTO_MODE;
+    config_ptr->new_nearest_comb_inject = AUTO_MODE;
+    config_ptr->nx4_4xn_parent_mv_inject = AUTO_MODE;
+    config_ptr->prune_unipred_me = AUTO_MODE;
+    config_ptr->prune_ref_rec_part = AUTO_MODE;
+    config_ptr->nsq_table = AUTO_MODE;
+    config_ptr->frame_end_cdf_update = AUTO_MODE;
     config_ptr->enable_obmc = EB_TRUE;
     config_ptr->enable_rdoq = AUTO_MODE;
     config_ptr->enable_filter_intra = EB_TRUE;

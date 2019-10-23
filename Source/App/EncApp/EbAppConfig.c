@@ -66,6 +66,22 @@
 #define INTRA_REFRESH_TYPE_TOKEN        "-irefresh-type" // no Eval
 #define LOOP_FILTER_DISABLE_TOKEN       "-dlf"
 #define RESTORATION_ENABLE_TOKEN        "-restoration-filtering"
+#define CLASS_12_TOKEN                  "-class-12"
+#define EDGE_SKIP_ANGLE_INTRA_TOKEN     "-intra-edge-skp"
+#define INTER_INTRA_COMPOUND_TOKEN      "-interintra-comp"
+#define FRAC_SEARCH_64_TOKEN            "-frac-search-64"
+#define MFMV_ENABLE_TOKEN               "-mfmv"
+#define REDUNDANT_BLK_TOKEN             "-redundant-blk"
+#define TRELLIS_ENABLE_TOKEN            "-trellis"
+#define SPATIAL_SSE_FL_TOKEN            "-spatial-sse-fl"
+#define SUBPEL_TOKEN                    "-subpel"
+#define OVR_BNDRY_BLK_TOKEN             "-over-bndry-blk"
+#define NEW_NEAREST_COMB_INJECT_TOKEN   "-new-nrst-near-comb"
+#define NX4_4XN_MV_INJECT_TOKEN         "-nx4-4xn-mv-inject"
+#define PRUNE_UNIPRED_ME_TOKEN          "-prune-unipred-me"
+#define PRUNE_REF_REC_PART_TOKEN        "-prune-ref-rec-part"
+#define NSQ_TABLE_TOKEN                 "-nsq-table-use"
+#define FRAME_END_CDF_UPDATE_TOKEN      "-framend-cdf-upd-mode"
 #define LOCAL_WARPED_ENABLE_TOKEN       "-local-warp"
 #define GLOBAL_MOTION_ENABLE_TOKEN      "-global-motion"
 #define OBMC_TOKEN                      "-obmc"
@@ -251,6 +267,22 @@ static void SetDisableDlfFlag                   (const char *value, EbConfig *cf
 static void SetEnableLocalWarpedMotionFlag      (const char *value, EbConfig *cfg) {cfg->enable_warped_motion = (EbBool)strtoul(value, NULL, 0);};
 static void SetEnableGlobalMotionFlag           (const char *value, EbConfig *cfg) {cfg->enable_global_motion = (EbBool)strtoul(value, NULL, 0);};
 static void SetEnableRestorationFilterFlag      (const char *value, EbConfig *cfg) {cfg->enable_restoration_filtering = strtol(value, NULL, 0);};
+static void SetClass12Flag                      (const char *value, EbConfig *cfg) {cfg->combine_class_12 = strtol(value, NULL, 0);};
+static void SetEdgeSkipAngleIntraFlag           (const char *value, EbConfig *cfg) {cfg->edge_skp_angle_intra = strtol(value, NULL, 0);};
+static void SetInterIntraCompoundFlag           (const char *value, EbConfig *cfg) {cfg->inter_intra_compound = strtol(value, NULL, 0);};
+static void SetFractionalSearch64Flag           (const char *value, EbConfig *cfg) {cfg->fract_search_64 = strtol(value, NULL, 0);};
+static void SetEnableMfmvFlag                   (const char *value, EbConfig *cfg) {cfg->enable_mfmv = strtol(value, NULL, 0);};
+static void SetEnableRedundantBlkFlag           (const char *value, EbConfig *cfg) {cfg->enable_redundant_blk = strtol(value, NULL, 0);};
+static void SetEnableTrellisFlag                (const char *value, EbConfig *cfg) {cfg->enable_trellis = strtol(value, NULL, 0);};
+static void SetSpatialSseFlFlag                 (const char *value, EbConfig *cfg) {cfg->spatial_sse_fl = strtol(value, NULL, 0);};
+static void SetEnableSubpelFlag                 (const char *value, EbConfig *cfg) {cfg->enable_subpel = strtol(value, NULL, 0);};
+static void SetOverBndryBlkFlag                 (const char *value, EbConfig *cfg) {cfg->over_bndry_blk = strtol(value, NULL, 0);};
+static void SetNewNearestCombInjectFlag         (const char *value, EbConfig *cfg) {cfg->new_nearest_comb_inject = strtol(value, NULL, 0);};
+static void SetNx4_4xnParentMvInjectFlag        (const char *value, EbConfig *cfg) {cfg->nx4_4xn_parent_mv_inject = strtol(value, NULL, 0);};
+static void SetPruneUnipredMeFlag               (const char *value, EbConfig *cfg) {cfg->prune_unipred_me = strtol(value, NULL, 0);};
+static void SetPruneRefRecPartFlag              (const char *value, EbConfig *cfg) {cfg->prune_ref_rec_part = strtol(value, NULL, 0);};
+static void SetNsqTableFlag                     (const char *value, EbConfig *cfg) {cfg->nsq_table = strtol(value, NULL, 0);};
+static void SetFrameEndCdfUpdateFlag            (const char *value, EbConfig *cfg) {cfg->frame_end_cdf_update = strtol(value, NULL, 0);};
 static void SetEnableObmcFlag                   (const char *value, EbConfig *cfg) {cfg->enable_obmc = (EbBool)strtoul(value, NULL, 0);};
 static void SetEnableRdoqFlag                   (const char *value, EbConfig *cfg) {cfg->enable_rdoq = strtol(value, NULL, 0);};
 static void SetEnableFilterIntraFlag            (const char *value, EbConfig *cfg) {cfg->enable_filter_intra = (EbBool)strtoul(value, NULL, 0);};
@@ -258,7 +290,6 @@ static void SetEnableHmeFlag                    (const char *value, EbConfig *cf
 static void SetEnableHmeLevel0Flag              (const char *value, EbConfig *cfg) {cfg->enable_hme_level0_flag = (EbBool)strtoul(value, NULL, 0);};
 static void SetTileRow                          (const char *value, EbConfig *cfg) { cfg->tile_rows = strtoul(value, NULL, 0); };
 static void SetTileCol                          (const char *value, EbConfig *cfg) { cfg->tile_columns = strtoul(value, NULL, 0); };
-
 static void SetSceneChangeDetection             (const char *value, EbConfig *cfg) {cfg->scene_change_detection = strtoul(value, NULL, 0);};
 static void SetLookAheadDistance                (const char *value, EbConfig *cfg) {cfg->look_ahead_distance = strtoul(value, NULL, 0);};
 static void SetRateControlMode                  (const char *value, EbConfig *cfg) {cfg->rate_control_mode = strtoul(value, NULL, 0);};
@@ -451,10 +482,33 @@ config_entry_t config_entry[] = {
     // RESTORATION
     { SINGLE_INPUT, RESTORATION_ENABLE_TOKEN, "RestorationFilter", SetEnableRestorationFilterFlag },
 
+    { SINGLE_INPUT, MFMV_ENABLE_TOKEN             , "Mfmv", SetEnableMfmvFlag           },
+    { SINGLE_INPUT, REDUNDANT_BLK_TOKEN           , "RedundantBlock", SetEnableRedundantBlkFlag   },
+    { SINGLE_INPUT, TRELLIS_ENABLE_TOKEN          , "Trellis", SetEnableTrellisFlag        },
+    { SINGLE_INPUT, SPATIAL_SSE_FL_TOKEN          , "SpatialSSEfl", SetSpatialSseFlFlag         },
+    { SINGLE_INPUT, SUBPEL_TOKEN                  , "Subpel", SetEnableSubpelFlag         },
+    { SINGLE_INPUT, OVR_BNDRY_BLK_TOKEN           , "OverBoundryBlock", SetOverBndryBlkFlag         },
+    { SINGLE_INPUT, NEW_NEAREST_COMB_INJECT_TOKEN , "NewNearestCombInjection", SetNewNearestCombInjectFlag },
+    { SINGLE_INPUT, NX4_4XN_MV_INJECT_TOKEN       , "nx4ParentMvInjection", SetNx4_4xnParentMvInjectFlag},
+    { SINGLE_INPUT, PRUNE_UNIPRED_ME_TOKEN        , "PruneUnipredMe", SetPruneUnipredMeFlag       },
+    { SINGLE_INPUT, PRUNE_REF_REC_PART_TOKEN      , "PruneRefRecPart", SetPruneRefRecPartFlag      },
+    { SINGLE_INPUT, NSQ_TABLE_TOKEN               , "NsqTable", SetNsqTableFlag             },
+    { SINGLE_INPUT, FRAME_END_CDF_UPDATE_TOKEN    , "FrameEndCdfUpdate", SetFrameEndCdfUpdateFlag    },
+
     // LOCAL WARPED MOTION
     { SINGLE_INPUT, LOCAL_WARPED_ENABLE_TOKEN, "LocalWarpedMotion", SetEnableLocalWarpedMotionFlag },
     // GLOBAL MOTION
     { SINGLE_INPUT, GLOBAL_MOTION_ENABLE_TOKEN, "GlobalMotion", SetEnableGlobalMotionFlag },
+
+    // CLASS 12
+    { SINGLE_INPUT, CLASS_12_TOKEN, "CombineClass12", SetClass12Flag },
+    // EDGE SKIP ANGLE INTRA
+    { SINGLE_INPUT, EDGE_SKIP_ANGLE_INTRA_TOKEN, "EdgeSkipAngleIntra", SetEdgeSkipAngleIntraFlag },
+    // INTER INTRA COMPOUND
+    { SINGLE_INPUT, INTER_INTRA_COMPOUND_TOKEN, "InterIntraCompound", SetInterIntraCompoundFlag },
+    // FRACTIONAL SEARCH 64x64
+    { SINGLE_INPUT, FRAC_SEARCH_64_TOKEN, "FractionalSearch64", SetFractionalSearch64Flag },
+
     // OBMC
     { SINGLE_INPUT, OBMC_TOKEN, "Obmc", SetEnableObmcFlag },
     // RDOQ
@@ -560,6 +614,22 @@ void eb_config_ctor(EbConfig *config_ptr)
     config_ptr->pred_structure                        = 2;
     config_ptr->enable_global_motion                 = EB_TRUE;
     config_ptr->enable_restoration_filtering         = AUTO_MODE;
+    config_ptr->combine_class_12                     = AUTO_MODE;
+    config_ptr->edge_skp_angle_intra                 = AUTO_MODE;
+    config_ptr->inter_intra_compound                 = AUTO_MODE;
+    config_ptr->fract_search_64                      = AUTO_MODE;
+    config_ptr->enable_mfmv                          = AUTO_MODE;
+    config_ptr->enable_redundant_blk                 = AUTO_MODE;
+    config_ptr->enable_trellis                       = AUTO_MODE;
+    config_ptr->spatial_sse_fl                       = AUTO_MODE;
+    config_ptr->enable_subpel                        = AUTO_MODE;
+    config_ptr->over_bndry_blk                       = AUTO_MODE;
+    config_ptr->new_nearest_comb_inject              = AUTO_MODE;
+    config_ptr->nx4_4xn_parent_mv_inject             = AUTO_MODE;
+    config_ptr->prune_unipred_me                     = AUTO_MODE;
+    config_ptr->prune_ref_rec_part                   = AUTO_MODE;
+    config_ptr->nsq_table                            = AUTO_MODE;
+    config_ptr->frame_end_cdf_update                 = AUTO_MODE;
     config_ptr->enable_obmc                          = EB_TRUE;
     config_ptr->enable_rdoq                          = AUTO_MODE;
     config_ptr->enable_filter_intra                  = EB_TRUE;
@@ -940,6 +1010,86 @@ static EbErrorType VerifySettings(EbConfig *config, uint32_t channelNumber)
      // Restoration Filtering
      if (config->enable_restoration_filtering != 0 && config->enable_restoration_filtering != 1 && config->enable_restoration_filtering != -1) {
          fprintf(config->error_log_file, "Error instance %u: Invalid restoration flag [0 - 1, -1 for auto], your input: %d\n", channelNumber + 1, config->enable_restoration_filtering);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->combine_class_12 != 0 && config->combine_class_12 != 1 && config->combine_class_12 != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid combine MD Class1&2 flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->combine_class_12);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->edge_skp_angle_intra != 0 && config->edge_skp_angle_intra != 1 && config->edge_skp_angle_intra != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid Enable skip angle intra based on edge flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->edge_skp_angle_intra);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->inter_intra_compound != 0 && config->inter_intra_compound != 1 && config->inter_intra_compound != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid Inter Intra Compound flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->inter_intra_compound);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->fract_search_64 != 0 && config->fract_search_64 != 1 && config->fract_search_64 != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid fractional search for 64x64 flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->fract_search_64);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->enable_mfmv != 0 && config->enable_mfmv != 1 && config->enable_mfmv != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid motion field motion vector flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->enable_mfmv);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->enable_redundant_blk != 0 && config->enable_redundant_blk != 1 && config->enable_redundant_blk != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid enable_redundant_blk  flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->enable_redundant_blk);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->enable_trellis != 0 && config->enable_trellis != 1 && config->enable_trellis != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid enable_trellis flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->enable_trellis);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->spatial_sse_fl != 0 && config->spatial_sse_fl != 1 && config->spatial_sse_fl != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid spatial_sse_fl flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->spatial_sse_fl);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->enable_subpel != 0 && config->enable_subpel != 1 && config->enable_subpel != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid enable_subpel flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->enable_subpel);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->over_bndry_blk != 0 && config->over_bndry_blk != 1 && config->over_bndry_blk != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid over_bndry_blk flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->over_bndry_blk);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->new_nearest_comb_inject != 0 && config->new_nearest_comb_inject != 1 && config->new_nearest_comb_inject != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid new_nearest_comb_inject flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->new_nearest_comb_inject);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->nx4_4xn_parent_mv_inject != 0 && config->nx4_4xn_parent_mv_inject != 1 && config->nx4_4xn_parent_mv_inject != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid nx4_4xn_parent_mv_inject flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->nx4_4xn_parent_mv_inject);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->prune_unipred_me != 0 && config->prune_unipred_me != 1 && config->prune_unipred_me != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid prune_unipred_me flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->prune_unipred_me);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->prune_ref_rec_part != 0 && config->prune_ref_rec_part != 1 && config->prune_ref_rec_part != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid prune_ref_rec_part flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->prune_ref_rec_part);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->nsq_table != 0 && config->nsq_table != 1 && config->nsq_table != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid nsq_table flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->nsq_table);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->frame_end_cdf_update != 0 && config->frame_end_cdf_update != 1 && config->frame_end_cdf_update != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid frame_end_cdf_update flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->frame_end_cdf_update);
          return_error = EB_ErrorBadParameter;
      }
 

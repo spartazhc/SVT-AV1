@@ -700,8 +700,9 @@ void* resource_coordination_kernel(void *input_ptr)
                     sequence_control_set_ptr->static_config.altref_nframes > 1 &&
                     ((sequence_control_set_ptr->static_config.encoder_bit_depth >= 8 && sequence_control_set_ptr->static_config.enc_mode == ENC_M0) ||
                     sequence_control_set_ptr->static_config.encoder_bit_depth == 8) ? EB_TRUE : EB_FALSE;
-
+            if (sequence_control_set_ptr->static_config.inter_intra_compound == AUTO_MODE)
 #if II_COMP_FLAG
+
 #if INTER_INTRA_HBD
             // Set inter-intra mode      Settings
             // 0                 OFF
@@ -726,6 +727,8 @@ void* resource_coordination_kernel(void *input_ptr)
                                                                               (sequence_control_set_ptr->static_config.enc_mode == ENC_M0) ? 1 : 0;
 #endif
 #endif
+            else
+                sequence_control_set_ptr->seq_header.enable_interintra_compound = sequence_control_set_ptr->static_config.inter_intra_compound;
 #if FILTER_INTRA_FLAG
             // Set filter intra mode      Settings
             // 0                 OFF
