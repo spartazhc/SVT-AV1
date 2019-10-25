@@ -1500,18 +1500,21 @@ EbErrorType signal_derivation_enc_dec_kernel_oq(
     }
     else
 #endif
-    if (picture_control_set_ptr->parent_pcs_ptr->sc_content_detected)
-        if (picture_control_set_ptr->enc_mode <= ENC_M1)
-            context_ptr->bipred3x3_injection = 1;
+    if (sequence_control_set_ptr->static_config.bipred_3x3_inject == AUTO_MODE)
+        if (picture_control_set_ptr->parent_pcs_ptr->sc_content_detected)
+            if (picture_control_set_ptr->enc_mode <= ENC_M1)
+                context_ptr->bipred3x3_injection = 1;
+            else
+                context_ptr->bipred3x3_injection = 0;
         else
-            context_ptr->bipred3x3_injection = 0;
+            if (picture_control_set_ptr->enc_mode <= ENC_M1)
+                context_ptr->bipred3x3_injection = 1;
+            else if (picture_control_set_ptr->enc_mode <= ENC_M4)
+                context_ptr->bipred3x3_injection = 2;
+            else
+                context_ptr->bipred3x3_injection = 0;
     else
-    if (picture_control_set_ptr->enc_mode <= ENC_M1)
-        context_ptr->bipred3x3_injection = 1;
-    else if (picture_control_set_ptr->enc_mode <= ENC_M4)
-        context_ptr->bipred3x3_injection = 2;
-    else
-        context_ptr->bipred3x3_injection = 0;
+        context_ptr->bipred3x3_injection = sequence_control_set_ptr->static_config.bipred_3x3_inject;
 
     // Level                Settings
     // 0                    Level 0: OFF
@@ -1526,20 +1529,23 @@ EbErrorType signal_derivation_enc_dec_kernel_oq(
             context_ptr->predictive_me_level = 0;
         else if (context_ptr->pd_pass == PD_PASS_1)
             context_ptr->predictive_me_level = 2;
-        else
+    else
 #endif
+        if (sequence_control_set_ptr->static_config.pred_me == AUTO_MODE)
 #if M0_OPT
-        if (picture_control_set_ptr->enc_mode <= ENC_M0)
-            context_ptr->predictive_me_level = picture_control_set_ptr->parent_pcs_ptr->sc_content_detected ? 2 : 5;
-        else if (picture_control_set_ptr->enc_mode <= ENC_M1)
+            if (picture_control_set_ptr->enc_mode <= ENC_M0)
+                context_ptr->predictive_me_level = picture_control_set_ptr->parent_pcs_ptr->sc_content_detected ? 2 : 5;
+            else if (picture_control_set_ptr->enc_mode <= ENC_M1)
 #else
-        if (picture_control_set_ptr->enc_mode <= ENC_M1)
+            if (picture_control_set_ptr->enc_mode <= ENC_M1)
 #endif
-            context_ptr->predictive_me_level = 4;
-        else if (picture_control_set_ptr->enc_mode <= ENC_M4)
-            context_ptr->predictive_me_level = 2;
+                context_ptr->predictive_me_level = 4;
+            else if (picture_control_set_ptr->enc_mode <= ENC_M4)
+                context_ptr->predictive_me_level = 2;
+            else
+                context_ptr->predictive_me_level = 0;
         else
-            context_ptr->predictive_me_level = 0;
+            context_ptr->predictive_me_level = (picture_control_set_ptr->slice_type == I_SLICE)?0: sequence_control_set_ptr->static_config.pred_me;
     else
         context_ptr->predictive_me_level = 0;
 

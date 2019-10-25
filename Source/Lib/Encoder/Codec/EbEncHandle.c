@@ -2167,6 +2167,13 @@ void CopyApiFromApp(
     // RDOQ
     sequence_control_set_ptr->static_config.enable_rdoq = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_rdoq;
 
+    // Predictive ME
+    sequence_control_set_ptr->static_config.pred_me  = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->pred_me;
+    // BiPred 3x3 injection
+    sequence_control_set_ptr->static_config.bipred_3x3_inject = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->bipred_3x3_inject;
+    // Compound mode
+    sequence_control_set_ptr->static_config.compound_level = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->compound_level;
+
     // Filter intra prediction
     sequence_control_set_ptr->static_config.enable_filter_intra = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_filter_intra;
 
@@ -2735,6 +2742,9 @@ EbErrorType eb_svt_enc_init_parameter(
     config_ptr->frame_end_cdf_update = AUTO_MODE;
     config_ptr->enable_obmc = EB_TRUE;
     config_ptr->enable_rdoq = AUTO_MODE;
+    config_ptr->pred_me = AUTO_MODE;
+    config_ptr->bipred_3x3_inject = AUTO_MODE;
+    config_ptr->compound_level = AUTO_MODE;
     config_ptr->enable_filter_intra = EB_TRUE;
     config_ptr->in_loop_me_flag = EB_TRUE;
     config_ptr->ext_block_flag = EB_FALSE;

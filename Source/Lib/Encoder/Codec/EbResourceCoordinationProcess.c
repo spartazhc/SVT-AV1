@@ -702,7 +702,6 @@ void* resource_coordination_kernel(void *input_ptr)
                     sequence_control_set_ptr->static_config.encoder_bit_depth == 8) ? EB_TRUE : EB_FALSE;
             if (sequence_control_set_ptr->static_config.inter_intra_compound == AUTO_MODE)
 #if II_COMP_FLAG
-
 #if INTER_INTRA_HBD
             // Set inter-intra mode      Settings
             // 0                 OFF
@@ -741,18 +740,22 @@ void* resource_coordination_kernel(void *input_ptr)
             // Set compound mode      Settings
             // 0                 OFF: No compond mode search : AVG only
             // 1                 ON: full
+            if (sequence_control_set_ptr->static_config.compound_level == AUTO_MODE)
 #if INTER_INTER_HBD
 #if COMP_HBD
-            sequence_control_set_ptr->compound_mode = (sequence_control_set_ptr->static_config.enc_mode <= ENC_M4) ? 1 : 0;
+                sequence_control_set_ptr->compound_mode = (sequence_control_set_ptr->static_config.enc_mode <= ENC_M4) ? 1 : 0;
 #else
-            sequence_control_set_ptr->compound_mode = (sequence_control_set_ptr->static_config.encoder_bit_depth == EB_10BIT &&
-                                                       sequence_control_set_ptr->static_config.enable_hbd_mode_decision ) ? 0:
-                                                      (sequence_control_set_ptr->static_config.enc_mode <= ENC_M4) ? 1 : 0;
+                sequence_control_set_ptr->compound_mode = (sequence_control_set_ptr->static_config.encoder_bit_depth == EB_10BIT &&
+                                                           sequence_control_set_ptr->static_config.enable_hbd_mode_decision ) ? 0:
+                                                          (sequence_control_set_ptr->static_config.enc_mode <= ENC_M4) ? 1 : 0;
 #endif
 #else
-            sequence_control_set_ptr->compound_mode = sequence_control_set_ptr->static_config.encoder_bit_depth == EB_10BIT ? 0 :
-                (sequence_control_set_ptr->static_config.enc_mode <= ENC_M4) ? 1 : 0;
+                sequence_control_set_ptr->compound_mode = sequence_control_set_ptr->static_config.encoder_bit_depth == EB_10BIT ? 0 :
+                                                         (sequence_control_set_ptr->static_config.enc_mode <= ENC_M4) ? 1 : 0;
 #endif
+            else
+                sequence_control_set_ptr->compound_mode = sequence_control_set_ptr->static_config.compound_level;
+
             if (sequence_control_set_ptr->compound_mode)
             {
                 sequence_control_set_ptr->seq_header.order_hint_info.enable_jnt_comp = 1; //DISTANCE
