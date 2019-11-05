@@ -2161,6 +2161,9 @@ void CopyApiFromApp(
     // frame end cdf update mode
     sequence_control_set_ptr->static_config.frame_end_cdf_update         = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->frame_end_cdf_update;
 
+    // Chroma mode
+    sequence_control_set_ptr->static_config.set_chroma_mode = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->set_chroma_mode;
+
     // OBMC
     sequence_control_set_ptr->static_config.enable_obmc = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_obmc;
 
@@ -2740,6 +2743,7 @@ EbErrorType eb_svt_enc_init_parameter(
     config_ptr->prune_ref_rec_part = AUTO_MODE;
     config_ptr->nsq_table = AUTO_MODE;
     config_ptr->frame_end_cdf_update = AUTO_MODE;
+    config_ptr->set_chroma_mode = AUTO_MODE;
     config_ptr->enable_obmc = EB_TRUE;
     config_ptr->enable_rdoq = AUTO_MODE;
     config_ptr->pred_me = AUTO_MODE;

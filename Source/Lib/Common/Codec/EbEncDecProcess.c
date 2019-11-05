@@ -1300,29 +1300,26 @@ EbErrorType signal_derivation_enc_dec_kernel_oq(
     }
     else
 #endif
-    if (picture_control_set_ptr->parent_pcs_ptr->sc_content_detected)
-        if (picture_control_set_ptr->enc_mode <= ENC_M6)
-            context_ptr->chroma_level = CHROMA_MODE_1;
-        else
-            if (picture_control_set_ptr->parent_pcs_ptr->temporal_layer_index == 0)
+    if (sequence_control_set_ptr->static_config.set_chroma_mode == AUTO_MODE) {
+        if (picture_control_set_ptr->parent_pcs_ptr->sc_content_detected)
+            if (picture_control_set_ptr->enc_mode <= ENC_M6)
                 context_ptr->chroma_level = CHROMA_MODE_1;
             else
-                context_ptr->chroma_level = (sequence_control_set_ptr->encoder_bit_depth == EB_8BIT) ?
-                CHROMA_MODE_2 :
-                CHROMA_MODE_3;
-    else
-    if (MR_MODE)
-        context_ptr->chroma_level = CHROMA_MODE_0;
-    else
-    if (picture_control_set_ptr->enc_mode == ENC_M0 && picture_control_set_ptr->temporal_layer_index == 0)
-        context_ptr->chroma_level = CHROMA_MODE_0;
-    else
-    if (picture_control_set_ptr->enc_mode <= ENC_M4)
-        context_ptr->chroma_level = CHROMA_MODE_1;
-    else
-        context_ptr->chroma_level = (sequence_control_set_ptr->encoder_bit_depth == EB_8BIT) ?
-            CHROMA_MODE_2 :
-            CHROMA_MODE_3 ;
+                if (picture_control_set_ptr->parent_pcs_ptr->temporal_layer_index == 0)
+                    context_ptr->chroma_level = CHROMA_MODE_1;
+                else
+                    context_ptr->chroma_level = (sequence_control_set_ptr->encoder_bit_depth == EB_8BIT) ?  CHROMA_MODE_2 : CHROMA_MODE_3;
+            else if (MR_MODE)
+                context_ptr->chroma_level = CHROMA_MODE_0;
+            else if (picture_control_set_ptr->enc_mode == ENC_M0 && picture_control_set_ptr->temporal_layer_index == 0)
+                context_ptr->chroma_level = CHROMA_MODE_0;
+            else if (picture_control_set_ptr->enc_mode <= ENC_M4)
+                context_ptr->chroma_level = CHROMA_MODE_1;
+            else
+                context_ptr->chroma_level = (sequence_control_set_ptr->encoder_bit_depth == EB_8BIT) ?  CHROMA_MODE_2 : CHROMA_MODE_3 ;
+    }
+    else // use specified level
+      context_ptr->chroma_level = sequence_control_set_ptr->static_config.set_chroma_mode;
 
     // Set the full loop escape level
     // Level                Settings
