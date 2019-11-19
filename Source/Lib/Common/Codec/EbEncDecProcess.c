@@ -18,7 +18,7 @@
 
 #include "EbEncDecTasks.h"
 #include "EbEncDecResults.h"
-#include "EbDefinitions.h"
+//#include "EbDefinitions.h"
 #include "EbCodingLoop.h"
 #include "EbSvtAv1ErrorCodes.h"
 #include "EbUtility.h"

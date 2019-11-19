@@ -13,6 +13,7 @@
 #define AOM_AV1_ENCODER_GLOBAL_MOTION_H_
 
 #include "EbDefinitions.h"
+#include "EbUtility.h"
 #include "EbPictureBufferDesc.h"
 
 #ifdef __cplusplus

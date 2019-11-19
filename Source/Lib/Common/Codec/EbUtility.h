@@ -7,6 +7,7 @@
 #define EbUtility_h
 
 #include "EbDefinitions.h"
+#include "EbUtility.h"
 
 #ifdef __cplusplus
 extern "C" {

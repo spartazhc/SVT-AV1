@@ -25,6 +25,17 @@
 #include "EbCdef.h"
 #include "EbEncDecProcess.h"
 
+
+#include "EbDefinitions.h"
+
+//#include "EbSystemResourceManager.h"
+#include "EbPictureBufferDesc.h"
+#include "EbSequenceControlSet.h"
+#include "EbUtility.h"
+#include "EbPsnr.h"
+#include "EbPictureControlSet.h"
+//#include "EbObject.h"
+
 static int32_t priconv[REDUCED_PRI_STRENGTHS] = { 0, 1, 2, 3, 5, 7, 10, 13 };
 
 void copy_sb8_16(uint16_t *dst, int32_t dstride,

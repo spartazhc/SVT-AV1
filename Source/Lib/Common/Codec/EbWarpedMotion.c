@@ -13,8 +13,17 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <memory.h>
 #include "aom_dsp_rtcd.h"
 #include "EbWarpedMotion.h"
+
+#include "EbUtility.h"
+#include "EbPictureControlSet.h"
+#include "EbCodingUnit.h"
+#include "EbPredictionUnit.h"
+#include "EbNeighborArrays.h"
+#include "EbMvMerge.h"
+#include "EbDefinitions.h"
 
 #define WARP_ERROR_BLOCK 32
 

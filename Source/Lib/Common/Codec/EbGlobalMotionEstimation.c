@@ -19,6 +19,8 @@
 #include "EbGlobalMotionEstimation.h"
 #include "EbGlobalMotionEstimationCost.h"
 #include "EbReferenceObject.h"
+#include "EbMotionEstimationProcess.h"
+#include "EbWarpedMotion.h"
 
 #include "global_motion.h"
 #include "corner_detect.h"

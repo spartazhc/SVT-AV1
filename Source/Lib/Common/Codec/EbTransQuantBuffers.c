@@ -3,9 +3,9 @@
 * SPDX - License - Identifier: BSD - 2 - Clause - Patent
 */
 
-#include "EbDefinitions.h"
+//#include "EbDefinitions.h"
 #include "EbTransQuantBuffers.h"
-#include "EbPictureBufferDesc.h"
+//#include "EbPictureBufferDesc.h"
 
 void eb_trans_quant_buffers_dctor(EbPtr p)
 {

@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "EbDefinitions.h"
-#include "EbSystemResourceManager.h"
+//#include "EbDefinitions.h"
+//#include "EbSystemResourceManager.h"
 #include "EbPictureControlSet.h"
 #include "EbSequenceControlSet.h"
 #include "EbPictureBufferDesc.h"

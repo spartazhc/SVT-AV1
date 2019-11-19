@@ -5,8 +5,9 @@
 
 #include <stdlib.h>
 
-#include "EbDefinitions.h"
+//#include "EbDefinitions.h"
 #include "EbSequenceControlSet.h"
+#include "EbUtility.h"
 
 static void eb_sequence_control_set_dctor(EbPtr p)
 {

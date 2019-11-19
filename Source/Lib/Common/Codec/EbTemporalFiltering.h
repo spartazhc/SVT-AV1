@@ -19,10 +19,10 @@
 #ifndef EbTemporalFiltering_h
 #define EbTemporalFiltering_h
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
+//#include <stdlib.h>
+//#include <stdio.h>
+//#include <string.h>
+//#include <assert.h>
 #include "EbPictureControlSet.h"
 #include "EbMotionEstimationProcess.h"
 #include "EbSequenceControlSet.h"

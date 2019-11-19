@@ -7,7 +7,7 @@
 
 #include "EbPictureControlSet.h"
 #include "RateControlModel.h"
-#include "RateControlGopInfo.h"
+//#include "RateControlGopInfo.h"
 
 /*
  * @private

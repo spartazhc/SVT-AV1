@@ -15,22 +15,20 @@
 */
 #include <string.h>
 
-#include "EbDefinitions.h"
+#include "EbCodingLoop.h"
 #include "EbUtility.h"
 #include "EbTransformUnit.h"
 #include "EbRateDistortionCost.h"
 #include "EbDeblockingFilter.h"
 #include "EbPictureOperators.h"
-
 #include "EbSegmentation.h"
-#include "EbModeDecisionProcess.h"
 #include "EbEncDecProcess.h"
 #include "EbSvtAv1ErrorCodes.h"
 #include "EbTransforms.h"
 #include "EbModeDecisionConfigurationProcess.h"
 #include "EbIntraPrediction.h"
 #include "aom_dsp_rtcd.h"
-#include "EbCodingLoop.h"
+
 
 void av1_set_ref_frame(MvReferenceFrame *rf,
     int8_t ref_frame_type);

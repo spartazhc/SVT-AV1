@@ -12,22 +12,15 @@
 #ifndef EbWarpedMotion_h
 #define EbWarpedMotion_h
 
-#include "EbUtility.h"
-#include "EbPictureControlSet.h"
-#include "EbCodingUnit.h"
-#include "EbPredictionUnit.h"
-#include "EbNeighborArrays.h"
-#include "EbMvMerge.h"
-#include "EbDefinitions.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <memory.h>
-#include <math.h>
-#include <assert.h>
+//#include <stdio.h>
+//#include <stdlib.h>
+//
+//#include <math.h>
+//#include <assert.h>
 #include "convolve.h"
 
 // Bits of precision used for the model

@@ -6,9 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "EbDefinitions.h"
+//#include "EbDefinitions.h"
 #include "EbUtility.h"
-#include "EbSystemResourceManager.h"
+//#include "EbSystemResourceManager.h"
 #include "EbPictureControlSet.h"
 #include "EbSequenceControlSet.h"
 

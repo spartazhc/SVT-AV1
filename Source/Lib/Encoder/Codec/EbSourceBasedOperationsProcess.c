@@ -5,8 +5,8 @@
 
 #include <stdlib.h>
 
-#include "EbDefinitions.h"
-#include "EbSystemResourceManager.h"
+//#include "EbDefinitions.h"
+//#include "EbSystemResourceManager.h"
 #include "EbPictureControlSet.h"
 #include "EbSequenceControlSet.h"
 
@@ -15,6 +15,7 @@
 #include "EbPictureDemuxResults.h"
 #include "EbMotionEstimationContext.h"
 #include "emmintrin.h"
+#include "EbUtility.h"
 
 /**************************************
 * Macros

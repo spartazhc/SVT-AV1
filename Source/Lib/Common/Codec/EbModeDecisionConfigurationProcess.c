@@ -16,9 +16,9 @@
 
 #include <stdlib.h>
 
-#include "EbDefinitions.h"
+//#include "EbDefinitions.h"
 #include "EbUtility.h"
-#include "EbSequenceControlSet.h"
+//#include "EbSequenceControlSet.h"
 #include "EbPictureControlSet.h"
 #include "EbModeDecisionConfigurationProcess.h"
 #include "EbRateControlResults.h"

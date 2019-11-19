@@ -16,10 +16,7 @@
 
 #include <stdlib.h>
 
-#include "EbDefinitions.h"
 #include "EbMdRateEstimation.h"
-
-#include "EbBitstreamUnit.h"
 
 static INLINE int32_t get_interinter_wedge_bits(BlockSize sb_type) {
     const int32_t wbits = wedge_params_lookup[sb_type].bits;

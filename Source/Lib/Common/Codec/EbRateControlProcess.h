@@ -8,8 +8,6 @@
 
 #include "EbDefinitions.h"
 #include "EbSystemResourceManager.h"
-#include "EbSvtAv1Enc.h"
-#include "EbPictureControlSet.h"
 #include "RateControlModel.h"
 #include "EbObject.h"
 

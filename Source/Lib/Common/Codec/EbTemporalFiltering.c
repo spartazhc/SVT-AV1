@@ -26,7 +26,7 @@
 #include "EbMotionEstimation.h"
 #include "EbMotionEstimationProcess.h"
 #include "EbMotionEstimationContext.h"
-#include "EbDefinitions.h"
+//#include "EbDefinitions.h"
 #include "EbLambdaRateTables.h"
 #include "EbPictureAnalysisProcess.h"
 #include "EbMcp.h"
