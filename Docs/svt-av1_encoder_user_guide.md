@@ -157,6 +157,7 @@ The encoder parameters present in the `Sample.cfg` file are listed in this table
 | **Atb** | -atb | [0/1, -1 for auto] | AUTO | Enable atb , 0 = OFF, 1 = ON, -1 = AUTO|
 | **Cdf** | -cdf | [0/1, -1 for auto] | AUTO | Enable cdf, 0 = OFF, 1 = ON, -1 = AUTO|
 | **UpdateCdf** | -updt-cdf | [0/1, -1 for auto] | AUTO | Enable update cdf, 0 = OFF, 1 = ON, -1 = AUTO|
+| **CDEF** | -cdef | [0/1, -1 for auto] | AUTO | Enable CDEF, 0 = OFF, 1 = ON, -1 = AUTO|
 | **QuantFp** | -quantize-fp | [0/1, -1 for auto] | AUTO | Enable perform quantize fp, 0 = OFF, 1 = ON, -1 = AUTO|
 | **ExtBlockFlag** | -ext-block | [0 - 1] | Depends on –enc-mode | Enable the non-square block 0=OFF, 1= ON |
 | **ScreenContentMode** | -scm | [0 - 2] | 2 | Enable Screen Content Optimization mode (0: OFF, 1: ON, 2: Content Based Detection) |

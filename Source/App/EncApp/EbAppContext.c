@@ -193,6 +193,7 @@ EbErrorType CopyConfigurationParameters(
     callback_data->eb_enc_parameters.enable_global_motion = (EbBool)config->enable_global_motion;
     callback_data->eb_enc_parameters.enable_atb = config->enable_atb;
     callback_data->eb_enc_parameters.enable_cdf = config->enable_cdf;
+    callback_data->eb_enc_parameters.enable_cdef = config->enable_cdef;
     callback_data->eb_enc_parameters.quant_fp = config->quant_fp;
     callback_data->eb_enc_parameters.update_cdf = config->update_cdf;
     callback_data->eb_enc_parameters.enable_obmc = (EbBool)config->enable_obmc;

@@ -65,6 +65,7 @@
 #define SEPERATE_FILDS_TOKEN            "-separate-fields"
 #define INTRA_REFRESH_TYPE_TOKEN        "-irefresh-type" // no Eval
 #define LOOP_FILTER_DISABLE_TOKEN       "-dlf"
+#define CDEF_ENABLE_TOKEN               "-cdef"
 #define ATB_ENABLE_TOKEN                "-atb"
 #define CDF_ENABLE_TOKEN                "-cdf"
 #define QUANT_FP_TOKEN                  "-quantize-fp"
@@ -255,6 +256,7 @@ static void SetEnableLocalWarpedMotionFlag      (const char *value, EbConfig *cf
 static void SetEnableGlobalMotionFlag           (const char *value, EbConfig *cfg) {cfg->enable_global_motion = (EbBool)strtoul(value, NULL, 0);};
 static void SetEnableAtbFlag                    (const char *value, EbConfig *cfg) {cfg->enable_atb = strtol(value, NULL, 0);};
 static void SetEnableCdfFlag                    (const char *value, EbConfig *cfg) {cfg->enable_cdf = strtol(value, NULL, 0);};
+static void SetEnableCdefFlag                   (const char *value, EbConfig *cfg) {cfg->enable_cdef = strtol(value, NULL, 0);};
 static void SetQuantFpFlag                      (const char *value, EbConfig *cfg) {cfg->quant_fp = strtol(value, NULL, 0);};
 static void SetUpdateCdfFlag                    (const char *value, EbConfig *cfg) {cfg->update_cdf = strtol(value, NULL, 0);};
 static void SetEnableObmcFlag                   (const char *value, EbConfig *cfg) {cfg->enable_obmc = (EbBool)strtoul(value, NULL, 0);};
@@ -454,6 +456,9 @@ config_entry_t config_entry[] = {
     // DLF
     { SINGLE_INPUT, LOOP_FILTER_DISABLE_TOKEN, "LoopFilterDisable", SetDisableDlfFlag },
 
+    // CDEF
+    { SINGLE_INPUT, CDEF_ENABLE_TOKEN, "CDEF", SetEnableCdefFlag },
+
     { SINGLE_INPUT, QUANT_FP_TOKEN                , "QuantFp", SetQuantFpFlag              },
     { SINGLE_INPUT, UPDATE_CDF_TOKEN              , "UpdateCdf", SetUpdateCdfFlag            },
 
@@ -573,6 +578,7 @@ void eb_config_ctor(EbConfig *config_ptr)
     config_ptr->enable_global_motion                 = EB_TRUE;
     config_ptr->enable_atb                           = AUTO_MODE;
     config_ptr->enable_cdf                           = AUTO_MODE;
+    config_ptr->enable_cdef                          = AUTO_MODE;
     config_ptr->quant_fp                             = AUTO_MODE;
     config_ptr->update_cdf                           = AUTO_MODE;
     config_ptr->enable_obmc                          = EB_TRUE;
@@ -959,6 +965,12 @@ static EbErrorType VerifySettings(EbConfig *config, uint32_t channelNumber)
 
      if (config->enable_cdf != 0 && config->enable_cdf != 1 && config->enable_cdf != -1) {
          fprintf(config->error_log_file, "Error instance %u: Invalid cdf flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->enable_cdf);
+       return_error = EB_ErrorBadParameter;
+     }
+
+     // CDEF
+     if (config->enable_cdef != 0 && config->enable_cdef != 1 && config->enable_cdef != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid CDEF flag [0 - 1, -1 for auto], your input: %d\n", channelNumber + 1, config->enable_cdef);
          return_error = EB_ErrorBadParameter;
      }
 
