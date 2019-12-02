@@ -1470,6 +1470,764 @@ void move_cu_data(
     CodingUnit *src_cu,
     CodingUnit *dst_cu);
 
+#if RATE_ESTIMATION_UPDATE
+// from ebEntropycoding.c
+extern int av1_allow_intrabc(const Av1Common *const cm);
+int av1_filter_intra_allowed(
+    uint8_t   enable_filter_intra,
+    BlockSize bsize,
+#if PAL_SUP
+    uint8_t palette_size,
+#endif
+    uint32_t  mode); 
+INLINE int32_t is_chroma_reference(int32_t mi_row, int32_t mi_col, BlockSize bsize,
+    int32_t subsampling_x, int32_t subsampling_y);
+int32_t is_inter_block(const BlockModeInfo *mbmi);
+int av1_allow_palette(int allow_screen_content_tools,
+    BlockSize sb_type);
+#if 0
+// Note: All directional predictors must be between V_PRED and D67_PRED (both
+// inclusive).
+enum {
+    DC_PRED,        // Average of above and left pixels
+    V_PRED,         // Vertical
+    H_PRED,         // Horizontal
+    D45_PRED,       // Directional 45  degree
+    D135_PRED,      // Directional 135 degree
+    D113_PRED,      // Directional 113 degree
+    D157_PRED,      // Directional 157 degree
+    D203_PRED,      // Directional 203 degree
+    D67_PRED,       // Directional 67  degree
+    SMOOTH_PRED,    // Combination of horizontal and vertical interpolation
+    SMOOTH_V_PRED,  // Vertical interpolation
+    SMOOTH_H_PRED,  // Horizontal interpolation
+    PAETH_PRED,     // Predict from the direction of smallest gradient
+    NEARESTMV,
+    NEARMV,
+    GLOBALMV,
+    NEWMV,
+    // Compound ref compound modes
+    NEAREST_NEARESTMV,
+    NEAR_NEARMV,
+    NEAREST_NEWMV,
+    NEW_NEARESTMV,
+    NEAR_NEWMV,
+    NEW_NEARMV,
+    GLOBAL_GLOBALMV,
+    NEW_NEWMV,
+    MB_MODE_COUNT,
+    INTRA_MODE_START = DC_PRED,
+    INTRA_MODE_END = NEARESTMV,
+    INTRA_MODE_NUM = INTRA_MODE_END - INTRA_MODE_START,
+    SINGLE_INTER_MODE_START = NEARESTMV,
+    SINGLE_INTER_MODE_END = NEAREST_NEARESTMV,
+    SINGLE_INTER_MODE_NUM = SINGLE_INTER_MODE_END - SINGLE_INTER_MODE_START,
+    COMP_INTER_MODE_START = NEAREST_NEARESTMV,
+    COMP_INTER_MODE_END = MB_MODE_COUNT,
+    COMP_INTER_MODE_NUM = COMP_INTER_MODE_END - COMP_INTER_MODE_START,
+    INTER_MODE_START = NEARESTMV,
+    INTER_MODE_END = MB_MODE_COUNT,
+    INTRA_MODES = PAETH_PRED + 1,  // PAETH_PRED has to be the last intra mode.
+    INTRA_INVALID = MB_MODE_COUNT  // For uv_mode in inter blocks
+} UENUM1BYTE(PREDICTION_MODE);
+
+static void update_mv_component_stats(int comp, nmv_component *mvcomp,
+    MvSubpelPrecision precision) {
+    assert(comp != 0);
+    int offset;
+    const int sign = comp < 0;
+    const int mag = sign ? -comp : comp;
+    const int mv_class = get_mv_class(mag - 1, &offset);
+    const int d = offset >> 3;         // int mv data
+    const int fr = (offset >> 1) & 3;  // fractional mv data
+    const int hp = offset & 1;         // high precision mv data
+
+    // Sign
+    update_cdf(mvcomp->sign_cdf, sign, 2);
+
+    // Class
+    update_cdf(mvcomp->classes_cdf, mv_class, MV_CLASSES);
+
+    // Integer bits
+    if (mv_class == MV_CLASS_0) {
+        update_cdf(mvcomp->class0_cdf, d, CLASS0_SIZE);
+    }
+    else {
+        const int n = mv_class + CLASS0_BITS - 1;  // number of bits
+        for (int i = 0; i < n; ++i)
+            update_cdf(mvcomp->bits_cdf[i], (d >> i) & 1, 2);
+    }
+    // Fractional bits
+    if (precision > MV_SUBPEL_NONE) {
+        aom_cdf_prob *fp_cdf =
+            mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d] : mvcomp->fp_cdf;
+        update_cdf(fp_cdf, fr, MV_FP_SIZE);
+    }
+
+    // High precision bit
+    if (precision > MV_SUBPEL_LOW_PRECISION) {
+        aom_cdf_prob *hp_cdf =
+            mv_class == MV_CLASS_0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf;
+        update_cdf(hp_cdf, hp, 2);
+    }
+}
+
+void av1_update_mv_stats(const MV *mv, const MV *ref, nmv_context *mvctx,
+    MvSubpelPrecision precision) {
+    const MV diff = { mv->row - ref->row, mv->col - ref->col };
+    const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
+
+    update_cdf(mvctx->joints_cdf, j, MV_JOINTS);
+
+    if (mv_joint_vertical(j))
+        update_mv_component_stats(diff.row, &mvctx->comps[0], precision);
+
+    if (mv_joint_horizontal(j))
+        update_mv_component_stats(diff.col, &mvctx->comps[1], precision);
+}
+
+static AOM_INLINE void update_inter_mode_stats(FRAME_CONTEXT *fc,
+   // FRAME_COUNTS *counts,
+    PREDICTION_MODE mode,
+    int16_t mode_context) {
+   // (void)counts;
+
+    int16_t mode_ctx = mode_context & NEWMV_CTX_MASK;
+    if (mode == NEWMV) {
+#if CONFIG_ENTROPY_STATS
+        ++counts->newmv_mode[mode_ctx][0];
+#endif
+        update_cdf(fc->newmv_cdf[mode_ctx], 0, 2);
+        return;
+    }
+
+#if CONFIG_ENTROPY_STATS
+    ++counts->newmv_mode[mode_ctx][1];
+#endif
+    update_cdf(fc->newmv_cdf[mode_ctx], 1, 2);
+
+    mode_ctx = (mode_context >> GLOBALMV_OFFSET) & GLOBALMV_CTX_MASK;
+    if (mode == GLOBALMV) {
+#if CONFIG_ENTROPY_STATS
+        ++counts->zeromv_mode[mode_ctx][0];
+#endif
+        update_cdf(fc->zeromv_cdf[mode_ctx], 0, 2);
+        return;
+    }
+
+#if CONFIG_ENTROPY_STATS
+    ++counts->zeromv_mode[mode_ctx][1];
+#endif
+    update_cdf(fc->zeromv_cdf[mode_ctx], 1, 2);
+
+    mode_ctx = (mode_context >> REFMV_OFFSET) & REFMV_CTX_MASK;
+#if CONFIG_ENTROPY_STATS
+    ++counts->refmv_mode[mode_ctx][mode != NEARESTMV];
+#endif
+    update_cdf(fc->refmv_cdf[mode_ctx], mode != NEARESTMV, 2);
+}
+#endif
+static AOM_INLINE void update_palette_cdf(MacroBlockD *xd,
+    const MbModeInfo *const mbmi,
+    CodingUnit            *cu_ptr
+//    ,FRAME_COUNTS *counts
+) {
+    FRAME_CONTEXT *fc = xd->tile_ctx;
+    const BlockGeom          *blk_geom = get_blk_geom_mds(cu_ptr->mds_idx);
+    const BlockSize bsize = blk_geom->bsize;
+    const PaletteModeInfo *const pmi = &cu_ptr->palette_info.pmi;
+    const int palette_bsize_ctx = av1_get_palette_bsize_ctx(bsize);
+
+  //  (void)counts;
+
+    if (cu_ptr->pred_mode == DC_PRED) {
+        const int n = pmi->palette_size[0];
+        const int palette_mode_ctx = av1_get_palette_mode_ctx(xd);
+
+#if CONFIG_ENTROPY_STATS
+        ++counts->palette_y_mode[palette_bsize_ctx][palette_mode_ctx][n > 0];
+#endif
+        update_cdf(fc->palette_y_mode_cdf[palette_bsize_ctx][palette_mode_ctx],
+            n > 0, 2);
+        if (n > 0) {
+#if CONFIG_ENTROPY_STATS
+            ++counts->palette_y_size[palette_bsize_ctx][n - PALETTE_MIN_SIZE];
+#endif
+            update_cdf(fc->palette_y_size_cdf[palette_bsize_ctx],
+                n - PALETTE_MIN_SIZE, PALETTE_SIZES);
+        }
+    }
+    uint32_t intra_chroma_mode = cu_ptr->prediction_unit_array->intra_chroma_mode;
+    const int num_planes = 3;
+    const int uv_dc_pred =
+        num_planes > 1 && intra_chroma_mode == UV_DC_PRED 
+        //&& is_chroma_reference(mi_row, mi_col, bsize, 1, 1); AMIR to update mi_row and mi_col
+        ;
+    if (uv_dc_pred) {
+    //if (mbmi->uv_mode == UV_DC_PRED) {
+        const int n = pmi->palette_size[1];
+        const int palette_uv_mode_ctx = (pmi->palette_size[0] > 0);
+
+#if CONFIG_ENTROPY_STATS
+        ++counts->palette_uv_mode[palette_uv_mode_ctx][n > 0];
+#endif
+        update_cdf(fc->palette_uv_mode_cdf[palette_uv_mode_ctx], n > 0, 2);
+
+        if (n > 0) {
+#if CONFIG_ENTROPY_STATS
+            ++counts->palette_uv_size[palette_bsize_ctx][n - PALETTE_MIN_SIZE];
+#endif
+            update_cdf(fc->palette_uv_size_cdf[palette_bsize_ctx],
+                n - PALETTE_MIN_SIZE, PALETTE_SIZES);
+        }
+    }
+}
+
+static AOM_INLINE void sum_intra_stats(
+    PictureControlSet  *picture_control_set_ptr,
+    CodingUnit            *cu_ptr,
+    const AV1_COMMON *const cm,
+  //  FRAME_COUNTS *counts, 
+    MacroBlockD *xd,
+    const MbModeInfo *const mbmi,
+    const MbModeInfo *above_mi,
+    const MbModeInfo *left_mi,
+    const int intraonly, const int mi_row,
+    const int mi_col) {
+    FRAME_CONTEXT *fc = xd->tile_ctx;
+    const PredictionMode y_mode = cu_ptr->pred_mode;
+    //(void)counts;
+    const BlockGeom          *blk_geom = get_blk_geom_mds(cu_ptr->mds_idx);
+    const BlockSize bsize = blk_geom->bsize;
+
+    if (intraonly) {
+#if CONFIG_ENTROPY_STATS
+        const PREDICTION_MODE above = av1_above_block_mode(above_mi);
+        const PREDICTION_MODE left = av1_left_block_mode(left_mi);
+        const int above_ctx = intra_mode_context[above];
+        const int left_ctx = intra_mode_context[left];
+        ++counts->kf_y_mode[above_ctx][left_ctx][y_mode];
+#endif  // CONFIG_ENTROPY_STATS
+        update_cdf(get_y_mode_cdf(fc, above_mi, left_mi), y_mode, INTRA_MODES);
+    }
+    else {
+#if CONFIG_ENTROPY_STATS
+        ++counts->y_mode[size_group_lookup[bsize]][y_mode];
+#endif  // CONFIG_ENTROPY_STATS
+        update_cdf(fc->y_mode_cdf[size_group_lookup[bsize]], y_mode, INTRA_MODES);
+    }
+    if (cu_ptr->av1xd->use_intrabc == 0 && av1_filter_intra_allowed(
+        picture_control_set_ptr->parent_pcs_ptr->sequence_control_set_ptr->seq_header.enable_filter_intra, 
+        bsize, cu_ptr->palette_info.pmi.palette_size[0], y_mode)) {
+    //if (av1_filter_intra_allowed(cm, mbmi)) { AMIR to check
+        const int use_filter_intra_mode =
+            cu_ptr->filter_intra_mode != FILTER_INTRA_MODES;
+#if CONFIG_ENTROPY_STATS
+        ++counts->filter_intra[mbmi->sb_type][use_filter_intra_mode];
+        if (use_filter_intra_mode) {
+            ++counts
+                ->filter_intra_mode[mbmi->filter_intra_mode_info.filter_intra_mode];
+        }
+#endif  // CONFIG_ENTROPY_STATS
+        update_cdf(fc->filter_intra_cdfs[bsize], use_filter_intra_mode, 2);
+        if (use_filter_intra_mode) {
+            update_cdf(fc->filter_intra_mode_cdf,
+                cu_ptr->filter_intra_mode,
+                FILTER_INTRA_MODES);
+        }
+    }
+    if (av1_is_directional_mode(y_mode) && av1_use_angle_delta(bsize)) {
+#if CONFIG_ENTROPY_STATS
+        ++counts->angle_delta[mbmi->mode - V_PRED]
+            [mbmi->angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA];
+#endif
+        update_cdf(fc->angle_delta_cdf[y_mode - V_PRED],
+            cu_ptr->prediction_unit_array[0].angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA,
+            2 * MAX_ANGLE_DELTA + 1);
+    }
+
+    if (!is_chroma_reference(mi_row, mi_col, bsize,
+        1,/*xd->plane[AOM_PLANE_U].subsampling_x,*/
+        1/*xd->plane[AOM_PLANE_U].subsampling_y)*/))
+        return;
+
+    const int /* UV_PREDICTION_MODE*/ uv_mode = cu_ptr->prediction_unit_array->intra_chroma_mode;
+    const int cfl_allowed = blk_geom->bwidth <= 32 && blk_geom->bheight <= 32;
+#if CONFIG_ENTROPY_STATS
+    ++counts->uv_mode[cfl_allowed][y_mode][uv_mode];
+#endif  // CONFIG_ENTROPY_STATS
+    update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
+        UV_INTRA_MODES - !cfl_allowed);
+    if (uv_mode == UV_CFL_PRED) {
+        const int8_t joint_sign = cu_ptr->prediction_unit_array->cfl_alpha_signs;
+        const uint8_t idx = cu_ptr->prediction_unit_array->cfl_alpha_idx;
+
+#if CONFIG_ENTROPY_STATS
+        ++counts->cfl_sign[joint_sign];
+#endif
+        update_cdf(fc->cfl_sign_cdf, joint_sign, CFL_JOINT_SIGNS);
+        if (CFL_SIGN_U(joint_sign) != CFL_SIGN_ZERO) {
+            AomCdfProb *cdf_u = fc->cfl_alpha_cdf[CFL_CONTEXT_U(joint_sign)];
+
+#if CONFIG_ENTROPY_STATS
+            ++counts->cfl_alpha[CFL_CONTEXT_U(joint_sign)][CFL_IDX_U(idx)];
+#endif
+            update_cdf(cdf_u, CFL_IDX_U(idx), CFL_ALPHABET_SIZE);
+        }
+        if (CFL_SIGN_V(joint_sign) != CFL_SIGN_ZERO) {
+            AomCdfProb *cdf_v = fc->cfl_alpha_cdf[CFL_CONTEXT_V(joint_sign)];
+
+#if CONFIG_ENTROPY_STATS
+            ++counts->cfl_alpha[CFL_CONTEXT_V(joint_sign)][CFL_IDX_V(idx)];
+#endif
+            update_cdf(cdf_v, CFL_IDX_V(idx), CFL_ALPHABET_SIZE);
+        }
+    }
+    if (cu_ptr->prediction_unit_array[0].is_directional_chroma_mode_flag &&
+        av1_use_angle_delta(bsize)) {
+#if CONFIG_ENTROPY_STATS
+        ++counts->angle_delta[uv_mode - UV_V_PRED]
+            [mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA];
+#endif
+        update_cdf(fc->angle_delta_cdf[uv_mode - UV_V_PRED],
+            cu_ptr->prediction_unit_array[0].angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
+            2 * MAX_ANGLE_DELTA + 1);
+    }
+    if (av1_allow_palette(picture_control_set_ptr->parent_pcs_ptr->frm_hdr.allow_screen_content_tools, bsize)) {
+        update_palette_cdf(xd, mbmi/*, counts*/, cu_ptr);
+    }
+}
+static AOM_INLINE void update_stats(
+    PictureControlSet  *picture_control_set_ptr,
+    CodingUnit            *cu_ptr,
+  //  const AV1_COMMON *const cm,
+    //ThreadData *td,
+    int mi_row, int mi_col) {
+    const AV1_COMMON *const cm = picture_control_set_ptr->parent_pcs_ptr->av1_cm;
+  //  MACROBLOCK *x = &td->mb;
+  //  MACROBLOCKD *const xd = &x->e_mbd;
+    MacroBlockD *xd = cu_ptr->av1xd;
+    const MbModeInfo *const mbmi = &xd->mi[0]->mbmi;
+   // const MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+   // const CurrentFrame *const current_frame = &cm->current_frame;
+
+    const BlockGeom          *blk_geom = get_blk_geom_mds(cu_ptr->mds_idx);
+  //  uint32_t blkOriginX = context_ptr->sb_origin_x + blk_geom->origin_x;
+  //  uint32_t blkOriginY = context_ptr->sb_origin_y + blk_geom->origin_y;
+    BlockSize bsize = blk_geom->bsize;
+    EbBool                   skipCoeff = EB_FALSE;
+    skipCoeff = cu_ptr->block_has_coeff ? 0 : 1; // AN is it set properly?
+    FRAME_CONTEXT *fc = xd->tile_ctx;
+    const int seg_ref_active = picture_control_set_ptr->parent_pcs_ptr->frm_hdr.segmentation_params.segmentation_enabled &&
+        picture_control_set_ptr->parent_pcs_ptr->frm_hdr.segmentation_params.seg_id_pre_skip;
+       // segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
+
+    if (picture_control_set_ptr->parent_pcs_ptr->skip_mode_flag && !seg_ref_active &&
+        is_comp_ref_allowed(bsize)) {
+        const int skip_mode_ctx = cu_ptr->skip_flag_context; //av1_get_skip_mode_context(xd);
+#if CONFIG_ENTROPY_STATS
+        td->counts->skip_mode[skip_mode_ctx][mbmi->skip_mode]++;
+#endif
+        update_cdf(fc->skip_mode_cdfs[skip_mode_ctx], cu_ptr->skip_flag, 2);
+    }
+
+    if (!cu_ptr->skip_flag && !seg_ref_active) {
+        const int skip_ctx = cu_ptr->skip_coeff_context;//av1_get_skip_context(xd);
+#if CONFIG_ENTROPY_STATS
+        td->counts->skip[skip_ctx][mbmi->skip]++;
+#endif
+        update_cdf(fc->skip_cdfs[skip_ctx], skipCoeff, 2);
+    }
+
+#if CONFIG_ENTROPY_STATS
+    // delta quant applies to both intra and inter
+    const int super_block_upper_left =
+        ((mi_row & (cm->seq_params.mib_size - 1)) == 0) &&
+        ((mi_col & (cm->seq_params.mib_size - 1)) == 0);
+    const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
+    if (delta_q_info->delta_q_present_flag &&
+        (bsize != cm->seq_params.sb_size || !mbmi->skip) &&
+        super_block_upper_left) {
+        const int dq =
+            (mbmi->current_qindex - xd->current_qindex) / delta_q_info->delta_q_res;
+        const int absdq = abs(dq);
+        for (int i = 0; i < AOMMIN(absdq, DELTA_Q_SMALL); ++i) {
+            td->counts->delta_q[i][1]++;
+        }
+        if (absdq < DELTA_Q_SMALL) td->counts->delta_q[absdq][0]++;
+        if (delta_q_info->delta_lf_present_flag) {
+            if (delta_q_info->delta_lf_multi) {
+                const int frame_lf_count =
+                    av1_num_planes(cm) > 1 ? FRAME_LF_COUNT : FRAME_LF_COUNT - 2;
+                for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id) {
+                    const int delta_lf = (mbmi->delta_lf[lf_id] - xd->delta_lf[lf_id]) /
+                        delta_q_info->delta_lf_res;
+                    const int abs_delta_lf = abs(delta_lf);
+                    for (int i = 0; i < AOMMIN(abs_delta_lf, DELTA_LF_SMALL); ++i) {
+                        td->counts->delta_lf_multi[lf_id][i][1]++;
+                    }
+                    if (abs_delta_lf < DELTA_LF_SMALL)
+                        td->counts->delta_lf_multi[lf_id][abs_delta_lf][0]++;
+                }
+            }
+            else {
+                const int delta_lf =
+                    (mbmi->delta_lf_from_base - xd->delta_lf_from_base) /
+                    delta_q_info->delta_lf_res;
+                const int abs_delta_lf = abs(delta_lf);
+                for (int i = 0; i < AOMMIN(abs_delta_lf, DELTA_LF_SMALL); ++i) {
+                    td->counts->delta_lf[i][1]++;
+                }
+                if (abs_delta_lf < DELTA_LF_SMALL)
+                    td->counts->delta_lf[abs_delta_lf][0]++;
+            }
+        }
+    }
+#endif
+    if (!is_inter_block(&mbmi->block_mi)) {
+        sum_intra_stats(picture_control_set_ptr, cu_ptr,cm, /*td->counts,*/ xd, mbmi, xd->above_mbmi, xd->left_mbmi,
+            frame_is_intra_only(picture_control_set_ptr->parent_pcs_ptr), mi_row, mi_col);
+    }
+    if (av1_allow_intrabc(cm)) {
+        update_cdf(fc->intrabc_cdf, is_intrabc_block(&mbmi->block_mi), 2);
+#if CONFIG_ENTROPY_STATS
+        ++td->counts->intrabc[is_intrabc_block(mbmi)];
+#endif  // CONFIG_ENTROPY_STATS
+    }
+
+    if (frame_is_intra_only(picture_control_set_ptr->parent_pcs_ptr) || cu_ptr->skip_flag) return;
+#if 0
+    FRAME_COUNTS *const counts = td->counts;
+    const int inter_block = is_inter_block(mbmi);
+
+    if (!seg_ref_active) {
+#if CONFIG_ENTROPY_STATS
+        counts->intra_inter[av1_get_intra_inter_context(xd)][inter_block]++;
+#endif
+        update_cdf(fc->intra_inter_cdf[av1_get_intra_inter_context(xd)],
+            inter_block, 2);
+        // If the segment reference feature is enabled we have only a single
+        // reference frame allowed for the segment so exclude it from
+        // the reference frame counts used to work out probabilities.
+        if (inter_block) {
+            const MV_REFERENCE_FRAME ref0 = mbmi->ref_frame[0];
+            const MV_REFERENCE_FRAME ref1 = mbmi->ref_frame[1];
+            if (current_frame->reference_mode == REFERENCE_MODE_SELECT) {
+                if (is_comp_ref_allowed(bsize)) {
+#if CONFIG_ENTROPY_STATS
+                    counts->comp_inter[av1_get_reference_mode_context(xd)]
+                        [has_second_ref(mbmi)]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    update_cdf(av1_get_reference_mode_cdf(xd), has_second_ref(mbmi), 2);
+                }
+            }
+
+            if (has_second_ref(mbmi)) {
+                const COMP_REFERENCE_TYPE comp_ref_type = has_uni_comp_refs(mbmi)
+                    ? UNIDIR_COMP_REFERENCE
+                    : BIDIR_COMP_REFERENCE;
+                update_cdf(av1_get_comp_reference_type_cdf(xd), comp_ref_type,
+                    COMP_REFERENCE_TYPES);
+#if CONFIG_ENTROPY_STATS
+                counts->comp_ref_type[av1_get_comp_reference_type_context(xd)]
+                    [comp_ref_type]++;
+#endif  // CONFIG_ENTROPY_STATS
+
+                if (comp_ref_type == UNIDIR_COMP_REFERENCE) {
+                    const int bit = (ref0 == BWDREF_FRAME);
+                    update_cdf(av1_get_pred_cdf_uni_comp_ref_p(xd), bit, 2);
+#if CONFIG_ENTROPY_STATS
+                    counts
+                        ->uni_comp_ref[av1_get_pred_context_uni_comp_ref_p(xd)][0][bit]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    if (!bit) {
+                        const int bit1 = (ref1 == LAST3_FRAME || ref1 == GOLDEN_FRAME);
+                        update_cdf(av1_get_pred_cdf_uni_comp_ref_p1(xd), bit1, 2);
+#if CONFIG_ENTROPY_STATS
+                        counts->uni_comp_ref[av1_get_pred_context_uni_comp_ref_p1(xd)][1]
+                            [bit1]++;
+#endif  // CONFIG_ENTROPY_STATS
+                        if (bit1) {
+                            update_cdf(av1_get_pred_cdf_uni_comp_ref_p2(xd),
+                                ref1 == GOLDEN_FRAME, 2);
+#if CONFIG_ENTROPY_STATS
+                            counts->uni_comp_ref[av1_get_pred_context_uni_comp_ref_p2(xd)][2]
+                                [ref1 == GOLDEN_FRAME]++;
+#endif  // CONFIG_ENTROPY_STATS
+                        }
+                    }
+                }
+                else {
+                    const int bit = (ref0 == GOLDEN_FRAME || ref0 == LAST3_FRAME);
+                    update_cdf(av1_get_pred_cdf_comp_ref_p(xd), bit, 2);
+#if CONFIG_ENTROPY_STATS
+                    counts->comp_ref[av1_get_pred_context_comp_ref_p(xd)][0][bit]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    if (!bit) {
+                        update_cdf(av1_get_pred_cdf_comp_ref_p1(xd), ref0 == LAST2_FRAME,
+                            2);
+#if CONFIG_ENTROPY_STATS
+                        counts->comp_ref[av1_get_pred_context_comp_ref_p1(xd)][1]
+                            [ref0 == LAST2_FRAME]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    }
+                    else {
+                        update_cdf(av1_get_pred_cdf_comp_ref_p2(xd), ref0 == GOLDEN_FRAME,
+                            2);
+#if CONFIG_ENTROPY_STATS
+                        counts->comp_ref[av1_get_pred_context_comp_ref_p2(xd)][2]
+                            [ref0 == GOLDEN_FRAME]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    }
+                    update_cdf(av1_get_pred_cdf_comp_bwdref_p(xd), ref1 == ALTREF_FRAME,
+                        2);
+#if CONFIG_ENTROPY_STATS
+                    counts->comp_bwdref[av1_get_pred_context_comp_bwdref_p(xd)][0]
+                        [ref1 == ALTREF_FRAME]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    if (ref1 != ALTREF_FRAME) {
+                        update_cdf(av1_get_pred_cdf_comp_bwdref_p1(xd),
+                            ref1 == ALTREF2_FRAME, 2);
+#if CONFIG_ENTROPY_STATS
+                        counts->comp_bwdref[av1_get_pred_context_comp_bwdref_p1(xd)][1]
+                            [ref1 == ALTREF2_FRAME]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    }
+                }
+            }
+            else {
+                const int bit = (ref0 >= BWDREF_FRAME);
+                update_cdf(av1_get_pred_cdf_single_ref_p1(xd), bit, 2);
+#if CONFIG_ENTROPY_STATS
+                counts->single_ref[av1_get_pred_context_single_ref_p1(xd)][0][bit]++;
+#endif  // CONFIG_ENTROPY_STATS
+                if (bit) {
+                    assert(ref0 <= ALTREF_FRAME);
+                    update_cdf(av1_get_pred_cdf_single_ref_p2(xd), ref0 == ALTREF_FRAME,
+                        2);
+#if CONFIG_ENTROPY_STATS
+                    counts->single_ref[av1_get_pred_context_single_ref_p2(xd)][1]
+                        [ref0 == ALTREF_FRAME]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    if (ref0 != ALTREF_FRAME) {
+                        update_cdf(av1_get_pred_cdf_single_ref_p6(xd),
+                            ref0 == ALTREF2_FRAME, 2);
+#if CONFIG_ENTROPY_STATS
+                        counts->single_ref[av1_get_pred_context_single_ref_p6(xd)][5]
+                            [ref0 == ALTREF2_FRAME]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    }
+                }
+                else {
+                    const int bit1 = !(ref0 == LAST2_FRAME || ref0 == LAST_FRAME);
+                    update_cdf(av1_get_pred_cdf_single_ref_p3(xd), bit1, 2);
+#if CONFIG_ENTROPY_STATS
+                    counts->single_ref[av1_get_pred_context_single_ref_p3(xd)][2][bit1]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    if (!bit1) {
+                        update_cdf(av1_get_pred_cdf_single_ref_p4(xd), ref0 != LAST_FRAME,
+                            2);
+#if CONFIG_ENTROPY_STATS
+                        counts->single_ref[av1_get_pred_context_single_ref_p4(xd)][3]
+                            [ref0 != LAST_FRAME]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    }
+                    else {
+                        update_cdf(av1_get_pred_cdf_single_ref_p5(xd), ref0 != LAST3_FRAME,
+                            2);
+#if CONFIG_ENTROPY_STATS
+                        counts->single_ref[av1_get_pred_context_single_ref_p5(xd)][4]
+                            [ref0 != LAST3_FRAME]++;
+#endif  // CONFIG_ENTROPY_STATS
+                    }
+                }
+            }
+
+            if (cm->seq_params.enable_interintra_compound &&
+                is_interintra_allowed(mbmi)) {
+                const int bsize_group = size_group_lookup[bsize];
+                if (mbmi->ref_frame[1] == INTRA_FRAME) {
+#if CONFIG_ENTROPY_STATS
+                    counts->interintra[bsize_group][1]++;
+#endif
+                    update_cdf(fc->interintra_cdf[bsize_group], 1, 2);
+#if CONFIG_ENTROPY_STATS
+                    counts->interintra_mode[bsize_group][mbmi->interintra_mode]++;
+#endif
+                    update_cdf(fc->interintra_mode_cdf[bsize_group],
+                        mbmi->interintra_mode, INTERINTRA_MODES);
+                    if (is_interintra_wedge_used(bsize)) {
+#if CONFIG_ENTROPY_STATS
+                        counts->wedge_interintra[bsize][mbmi->use_wedge_interintra]++;
+#endif
+                        update_cdf(fc->wedge_interintra_cdf[bsize],
+                            mbmi->use_wedge_interintra, 2);
+                        if (mbmi->use_wedge_interintra) {
+#if CONFIG_ENTROPY_STATS
+                            counts->wedge_idx[bsize][mbmi->interintra_wedge_index]++;
+#endif
+                            update_cdf(fc->wedge_idx_cdf[bsize], mbmi->interintra_wedge_index,
+                                16);
+                        }
+                    }
+                }
+                else {
+#if CONFIG_ENTROPY_STATS
+                    counts->interintra[bsize_group][0]++;
+#endif
+                    update_cdf(fc->interintra_cdf[bsize_group], 0, 2);
+                }
+            }
+
+            const MOTION_MODE motion_allowed =
+                cm->switchable_motion_mode
+                ? motion_mode_allowed(xd->global_motion, xd, mbmi,
+                    cm->allow_warped_motion)
+                : SIMPLE_TRANSLATION;
+            if (mbmi->ref_frame[1] != INTRA_FRAME) {
+                if (motion_allowed == WARPED_CAUSAL) {
+#if CONFIG_ENTROPY_STATS
+                    counts->motion_mode[bsize][mbmi->motion_mode]++;
+#endif
+                    update_cdf(fc->motion_mode_cdf[bsize], mbmi->motion_mode,
+                        MOTION_MODES);
+                }
+                else if (motion_allowed == OBMC_CAUSAL) {
+#if CONFIG_ENTROPY_STATS
+                    counts->obmc[bsize][mbmi->motion_mode == OBMC_CAUSAL]++;
+#endif
+                    update_cdf(fc->obmc_cdf[bsize], mbmi->motion_mode == OBMC_CAUSAL, 2);
+                }
+            }
+
+            if (has_second_ref(mbmi)) {
+                assert(current_frame->reference_mode != SINGLE_REFERENCE &&
+                    is_inter_compound_mode(mbmi->mode) &&
+                    mbmi->motion_mode == SIMPLE_TRANSLATION);
+
+                const int masked_compound_used = is_any_masked_compound_used(bsize) &&
+                    cm->seq_params.enable_masked_compound;
+                if (masked_compound_used) {
+                    const int comp_group_idx_ctx = get_comp_group_idx_context(xd);
+#if CONFIG_ENTROPY_STATS
+                    ++counts->comp_group_idx[comp_group_idx_ctx][mbmi->comp_group_idx];
+#endif
+                    update_cdf(fc->comp_group_idx_cdf[comp_group_idx_ctx],
+                        mbmi->comp_group_idx, 2);
+                }
+
+                if (mbmi->comp_group_idx == 0) {
+                    const int comp_index_ctx = get_comp_index_context(cm, xd);
+#if CONFIG_ENTROPY_STATS
+                    ++counts->compound_index[comp_index_ctx][mbmi->compound_idx];
+#endif
+                    update_cdf(fc->compound_index_cdf[comp_index_ctx], mbmi->compound_idx,
+                        2);
+                }
+                else {
+                    assert(masked_compound_used);
+                    if (is_interinter_compound_used(COMPOUND_WEDGE, bsize)) {
+#if CONFIG_ENTROPY_STATS
+                        ++counts->compound_type[bsize][mbmi->interinter_comp.type -
+                            COMPOUND_WEDGE];
+#endif
+                        update_cdf(fc->compound_type_cdf[bsize],
+                            mbmi->interinter_comp.type - COMPOUND_WEDGE,
+                            MASKED_COMPOUND_TYPES);
+                    }
+                }
+            }
+            if (mbmi->interinter_comp.type == COMPOUND_WEDGE) {
+                if (is_interinter_compound_used(COMPOUND_WEDGE, bsize)) {
+#if CONFIG_ENTROPY_STATS
+                    counts->wedge_idx[bsize][mbmi->interinter_comp.wedge_index]++;
+#endif
+                    update_cdf(fc->wedge_idx_cdf[bsize],
+                        mbmi->interinter_comp.wedge_index, 16);
+                }
+            }
+        }
+    }
+
+    if (inter_block && cm->interp_filter == SWITCHABLE &&
+        mbmi->motion_mode != WARPED_CAUSAL &&
+        !is_nontrans_global_motion(xd, mbmi)) {
+        update_filter_type_cdf(xd, mbmi);
+    }
+    if (inter_block &&
+        !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
+        const PREDICTION_MODE mode = mbmi->mode;
+        const int16_t mode_ctx =
+            av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
+        if (has_second_ref(mbmi)) {
+#if CONFIG_ENTROPY_STATS
+            ++counts->inter_compound_mode[mode_ctx][INTER_COMPOUND_OFFSET(mode)];
+#endif
+            update_cdf(fc->inter_compound_mode_cdf[mode_ctx],
+                INTER_COMPOUND_OFFSET(mode), INTER_COMPOUND_MODES);
+        }
+        else {
+            update_inter_mode_stats(fc, counts, mode, mode_ctx);
+        }
+
+        const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
+        if (new_mv) {
+            const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+            for (int idx = 0; idx < 2; ++idx) {
+                if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
+                    const uint8_t drl_ctx =
+                        av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
+                    update_cdf(fc->drl_cdf[drl_ctx], mbmi->ref_mv_idx != idx, 2);
+#if CONFIG_ENTROPY_STATS
+                    ++counts->drl_mode[drl_ctx][mbmi->ref_mv_idx != idx];
+#endif
+                    if (mbmi->ref_mv_idx == idx) break;
+                }
+            }
+        }
+
+        if (have_nearmv_in_inter_mode(mbmi->mode)) {
+            const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+            for (int idx = 1; idx < 3; ++idx) {
+                if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
+                    const uint8_t drl_ctx =
+                        av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
+                    update_cdf(fc->drl_cdf[drl_ctx], mbmi->ref_mv_idx != idx - 1, 2);
+#if CONFIG_ENTROPY_STATS
+                    ++counts->drl_mode[drl_ctx][mbmi->ref_mv_idx != idx - 1];
+#endif
+                    if (mbmi->ref_mv_idx == idx - 1) break;
+                }
+            }
+        }
+        if (have_newmv_in_inter_mode(mbmi->mode)) {
+            const int allow_hp = cm->cur_frame_force_integer_mv
+                ? MV_SUBPEL_NONE
+                : cm->allow_high_precision_mv;
+            if (new_mv) {
+                for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
+                    const int_mv ref_mv = av1_get_ref_mv(x, ref);
+                    av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
+                        allow_hp);
+                }
+            }
+            else if (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV) {
+                const int ref = 1;
+                const int_mv ref_mv = av1_get_ref_mv(x, ref);
+                av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
+                    allow_hp);
+            }
+            else if (mbmi->mode == NEW_NEARESTMV || mbmi->mode == NEW_NEARMV) {
+                const int ref = 0;
+                const int_mv ref_mv = av1_get_ref_mv(x, ref);
+                av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
+                    allow_hp);
+            }
+        }
+    }
+#endif
+}
+#endif
 void perform_intra_coding_loop(
     PictureControlSet  *picture_control_set_ptr,
     LargestCodingUnit  *sb_ptr,
