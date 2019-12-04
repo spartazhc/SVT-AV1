@@ -1497,6 +1497,9 @@ void update_av1_mi_map(
 #endif
             //needed for CDEF
             miPtr[miX + miY * mi_stride].mbmi.block_mi.skip = cu_ptr->block_has_coeff ? EB_FALSE : EB_TRUE;
+#if RATE_ESTIMATION_UPDATE
+            // Add skip_mode
+#endif
         }
     }
 }

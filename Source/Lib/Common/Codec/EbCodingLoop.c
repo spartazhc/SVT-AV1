@@ -32,6 +32,9 @@
 #include "aom_dsp_rtcd.h"
 #include "EbCodingLoop.h"
 #include "EbComputeSAD.h"
+#if RATE_ESTIMATION_UPDATE
+#include "EbCommonUtils.h"
+#endif
 void av1_set_ref_frame(MvReferenceFrame *rf,
     int8_t ref_frame_type);
 
@@ -1471,6 +1474,32 @@ void move_cu_data(
     CodingUnit *dst_cu);
 
 #if RATE_ESTIMATION_UPDATE
+static INLINE int av1_get_skip_mode_context(const MacroBlockD *xd) {
+    const BlockModeInfo *const above_mi = &xd->above_mbmi->block_mi;
+    const BlockModeInfo *const left_mi = &xd->left_mbmi->block_mi;
+    const int above_skip_mode = above_mi ? above_mi->skip_mode : 0;
+    const int left_skip_mode = left_mi ? left_mi->skip_mode : 0;
+    return above_skip_mode + left_skip_mode;
+}
+static INLINE int av1_get_skip_context(const MacroBlockD *xd) {
+    const BlockModeInfo *const above_mi = &xd->above_mbmi->block_mi;
+    const BlockModeInfo *const left_mi = &xd->left_mbmi->block_mi;
+    const int above_skip = above_mi ? above_mi->skip : 0;
+    const int left_skip = left_mi ? left_mi->skip : 0;
+    return above_skip + left_skip;
+}
+
+// to add to ebCommonUtils.h
+static INLINE AomCdfProb *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
+    const BlockModeInfo *above_mi, const BlockModeInfo *left_mi)
+{
+    const PredictionMode above = above_mi ? above_mi->mode : DC_PRED;
+    const PredictionMode left = left_mi ? left_mi->mode : DC_PRED;
+    const int above_ctx = intra_mode_context[above];
+    const int left_ctx = intra_mode_context[left];
+    return tile_ctx->kf_y_cdf[above_ctx][left_ctx];
+}
+
 // from ebEntropycoding.c
 extern int av1_allow_intrabc(const Av1Common *const cm);
 int av1_filter_intra_allowed(
@@ -1480,64 +1509,203 @@ int av1_filter_intra_allowed(
     uint8_t palette_size,
 #endif
     uint32_t  mode); 
+
 INLINE int32_t is_chroma_reference(int32_t mi_row, int32_t mi_col, BlockSize bsize,
     int32_t subsampling_x, int32_t subsampling_y);
+
 int32_t is_inter_block(const BlockModeInfo *mbmi);
+
 int av1_allow_palette(int allow_screen_content_tools,
     BlockSize sb_type);
-#if 0
-// Note: All directional predictors must be between V_PRED and D67_PRED (both
-// inclusive).
-enum {
-    DC_PRED,        // Average of above and left pixels
-    V_PRED,         // Vertical
-    H_PRED,         // Horizontal
-    D45_PRED,       // Directional 45  degree
-    D135_PRED,      // Directional 135 degree
-    D113_PRED,      // Directional 113 degree
-    D157_PRED,      // Directional 157 degree
-    D203_PRED,      // Directional 203 degree
-    D67_PRED,       // Directional 67  degree
-    SMOOTH_PRED,    // Combination of horizontal and vertical interpolation
-    SMOOTH_V_PRED,  // Vertical interpolation
-    SMOOTH_H_PRED,  // Horizontal interpolation
-    PAETH_PRED,     // Predict from the direction of smallest gradient
-    NEARESTMV,
-    NEARMV,
-    GLOBALMV,
-    NEWMV,
-    // Compound ref compound modes
-    NEAREST_NEARESTMV,
-    NEAR_NEARMV,
-    NEAREST_NEWMV,
-    NEW_NEARESTMV,
-    NEAR_NEWMV,
-    NEW_NEARMV,
-    GLOBAL_GLOBALMV,
-    NEW_NEWMV,
-    MB_MODE_COUNT,
-    INTRA_MODE_START = DC_PRED,
-    INTRA_MODE_END = NEARESTMV,
-    INTRA_MODE_NUM = INTRA_MODE_END - INTRA_MODE_START,
-    SINGLE_INTER_MODE_START = NEARESTMV,
-    SINGLE_INTER_MODE_END = NEAREST_NEARESTMV,
-    SINGLE_INTER_MODE_NUM = SINGLE_INTER_MODE_END - SINGLE_INTER_MODE_START,
-    COMP_INTER_MODE_START = NEAREST_NEARESTMV,
-    COMP_INTER_MODE_END = MB_MODE_COUNT,
-    COMP_INTER_MODE_NUM = COMP_INTER_MODE_END - COMP_INTER_MODE_START,
-    INTER_MODE_START = NEARESTMV,
-    INTER_MODE_END = MB_MODE_COUNT,
-    INTRA_MODES = PAETH_PRED + 1,  // PAETH_PRED has to be the last intra mode.
-    INTRA_INVALID = MB_MODE_COUNT  // For uv_mode in inter blocks
-} UENUM1BYTE(PREDICTION_MODE);
 
-static void update_mv_component_stats(int comp, nmv_component *mvcomp,
+int av1_get_palette_bsize_ctx(BlockSize bsize);
+
+int av1_get_palette_mode_ctx(const MacroBlockD *xd);
+
+INLINE int has_second_ref(const MbModeInfo *mbmi);
+
+INLINE int has_uni_comp_refs(const MbModeInfo *mbmi);
+
+int av1_get_intra_inter_context(const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_reference_mode_cdf(const MacroBlockD *xd);
+
+//int av1_get_comp_reference_type_context_new(const MacroBlockD *xd);
+
+// == Uni-directional contexts ==
+
+//int eb_av1_get_pred_context_uni_comp_ref_p(const MacroBlockD *xd);
+
+//int eb_av1_get_pred_context_uni_comp_ref_p1(const MacroBlockD *xd);
+
+//int eb_av1_get_pred_context_uni_comp_ref_p2(const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_comp_reference_type_cdf(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p1(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p2(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p(const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p1(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p2(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_comp_bwdref_p(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_comp_bwdref_p1(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p1(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p2(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p3(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p4(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p5(
+    const MacroBlockD *xd);
+
+INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p6(
+    const MacroBlockD *xd);
+
+// For the bit to signal whether the single reference is ALTREF_FRAME or
+// non-ALTREF backward reference frame, knowing that it shall be either of
+// these 2 choices.
+int32_t eb_av1_get_pred_context_single_ref_p2(const MacroBlockD *xd);
+
+// For the bit to signal whether the single reference is LAST3/GOLDEN or
+// LAST2/LAST, knowing that it shall be either of these 2 choices.
+int32_t eb_av1_get_pred_context_single_ref_p3(const MacroBlockD *xd);
+
+// For the bit to signal whether the single reference is LAST2_FRAME or
+// LAST_FRAME, knowing that it shall be either of these 2 choices.
+int32_t eb_av1_get_pred_context_single_ref_p4(const MacroBlockD *xd);
+
+// For the bit to signal whether the single reference is GOLDEN_FRAME or
+// LAST3_FRAME, knowing that it shall be either of these 2 choices.
+int32_t eb_av1_get_pred_context_single_ref_p5(const MacroBlockD *xd);
+
+// For the bit to signal whether the single reference is ALTREF2_FRAME or
+// BWDREF_FRAME, knowing that it shall be either of these 2 choices.
+int32_t eb_av1_get_pred_context_single_ref_p6(const MacroBlockD *xd);
+
+INLINE int is_interintra_allowed(const MbModeInfo *mbmi);
+
+int get_comp_group_idx_context_enc(const MacroBlockD *xd);
+
+int get_comp_index_context_enc(
+    PictureParentControlSet   *pcs_ptr,
+    int cur_frame_index,
+    int bck_frame_index,
+    int fwd_frame_index,
+    const MacroBlockD *xd);
+int32_t is_nontrans_global_motion_EC(
+    MvReferenceFrame             rf0,
+    MvReferenceFrame             rf1,
+    CodingUnit                  *cu_ptr,
+    BlockSize sb_type,
+    PictureParentControlSet   *pcs_ptr);
+
+int16_t Av1ModeContextAnalyzer(
+    const int16_t *const mode_context, const MvReferenceFrame *const rf);
+
+int8_t av1_ref_frame_type(const MvReferenceFrame *const rf);
+
+uint8_t av1_drl_ctx(const CandidateMv *ref_mv_stack, int32_t ref_idx);
+
+int32_t have_newmv_in_inter_mode(PredictionMode mode);
+
+// Returns a context number for the given MB prediction signal
+static InterpFilter get_ref_filter_type(const BlockModeInfo *ref_mbmi,
+    const MacroBlockD *xd, int dir,
+    MvReferenceFrame ref_frame) {
+    (void)xd;
+
+    return ((ref_mbmi->ref_frame[0] == ref_frame ||
+        ref_mbmi->ref_frame[1] == ref_frame)
+        ? av1_extract_interp_filter(ref_mbmi->interp_filters, dir & 0x01)
+        : SWITCHABLE_FILTERS);
+}
+
+int av1_get_pred_context_switchable_interp(const MacroBlockD *xd, int dir) {
+
+    const MbModeInfo *const mbmi = &xd->mi[0]->mbmi;
+    const int ctx_offset =
+        (mbmi->block_mi.ref_frame[1] > INTRA_FRAME) * INTER_FILTER_COMP_OFFSET;
+    assert(dir == 0 || dir == 1);
+    const MvReferenceFrame ref_frame = mbmi->block_mi.ref_frame[0];
+    // Note:
+    // The mode info data structure has a one element border above and to the
+    // left of the entries corresponding to real macroblocks.
+    // The prediction flags in these dummy entries are initialized to 0.
+    int filter_type_ctx = ctx_offset + (dir & 0x01) * INTER_FILTER_DIR_OFFSET;
+    int left_type = SWITCHABLE_FILTERS;
+    int above_type = SWITCHABLE_FILTERS;
+
+    if (xd->left_available)
+        left_type = get_ref_filter_type(&xd->mi[-1]->mbmi.block_mi, xd, dir, ref_frame);
+
+    if (xd->up_available)
+        above_type =
+        get_ref_filter_type(&xd->mi[-xd->mi_stride]->mbmi.block_mi, xd, dir, ref_frame);
+
+    if (left_type == above_type) {
+        filter_type_ctx += left_type;
+    }
+    else if (left_type == SWITCHABLE_FILTERS) {
+        assert(above_type != SWITCHABLE_FILTERS);
+        filter_type_ctx += above_type;
+    }
+    else if (above_type == SWITCHABLE_FILTERS) {
+        assert(left_type != SWITCHABLE_FILTERS);
+        filter_type_ctx += left_type;
+    }
+    else {
+        filter_type_ctx += SWITCHABLE_FILTERS;
+    }
+
+    return filter_type_ctx;
+}
+
+typedef uint32_t InterpFilters;
+static INLINE InterpFilter av1_extract_interp_filter(InterpFilters filters,
+    int32_t x_filter);
+
+static AOM_INLINE void update_filter_type_cdf(MacroBlockD *xd,
+    const MbModeInfo *const mbmi) {
+    int dir;
+    for (dir = 0; dir < 2; ++dir) {
+        const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
+
+        InterpFilter filter = av1_extract_interp_filter(mbmi->block_mi.interp_filters, dir);
+        update_cdf(xd->tile_ctx->switchable_interp_cdf[ctx], filter,
+            SWITCHABLE_FILTERS);
+    }
+}
+MvClassType av1_get_mv_class(int32_t z, int32_t *offset);
+static void update_mv_component_stats(int comp, NmvComponent *mvcomp,
     MvSubpelPrecision precision) {
     assert(comp != 0);
     int offset;
     const int sign = comp < 0;
     const int mag = sign ? -comp : comp;
-    const int mv_class = get_mv_class(mag - 1, &offset);
+    const int mv_class = av1_get_mv_class(mag - 1, &offset);
     const int d = offset >> 3;         // int mv data
     const int fr = (offset >> 1) & 3;  // fractional mv data
     const int hp = offset & 1;         // high precision mv data
@@ -1559,23 +1727,25 @@ static void update_mv_component_stats(int comp, nmv_component *mvcomp,
     }
     // Fractional bits
     if (precision > MV_SUBPEL_NONE) {
-        aom_cdf_prob *fp_cdf =
+        AomCdfProb *fp_cdf =
             mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d] : mvcomp->fp_cdf;
         update_cdf(fp_cdf, fr, MV_FP_SIZE);
     }
 
     // High precision bit
     if (precision > MV_SUBPEL_LOW_PRECISION) {
-        aom_cdf_prob *hp_cdf =
+        AomCdfProb *hp_cdf =
             mv_class == MV_CLASS_0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf;
         update_cdf(hp_cdf, hp, 2);
     }
 }
 
-void av1_update_mv_stats(const MV *mv, const MV *ref, nmv_context *mvctx,
+MvJointType av1_get_mv_joint(const MV *mv);
+
+void av1_update_mv_stats(const MV *mv, const MV *ref, NmvContext *mvctx,
     MvSubpelPrecision precision) {
     const MV diff = { mv->row - ref->row, mv->col - ref->col };
-    const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
+    const MvJointType j = av1_get_mv_joint(&diff);
 
     update_cdf(mvctx->joints_cdf, j, MV_JOINTS);
 
@@ -1585,10 +1755,10 @@ void av1_update_mv_stats(const MV *mv, const MV *ref, nmv_context *mvctx,
     if (mv_joint_horizontal(j))
         update_mv_component_stats(diff.col, &mvctx->comps[1], precision);
 }
-
+#if 1
 static AOM_INLINE void update_inter_mode_stats(FRAME_CONTEXT *fc,
    // FRAME_COUNTS *counts,
-    PREDICTION_MODE mode,
+    PredictionMode mode,
     int16_t mode_context) {
    // (void)counts;
 
@@ -1640,7 +1810,7 @@ static AOM_INLINE void update_palette_cdf(MacroBlockD *xd,
 
   //  (void)counts;
 
-    if (cu_ptr->pred_mode == DC_PRED) {
+    if (mbmi->block_mi.mode == DC_PRED) {
         const int n = pmi->palette_size[0];
         const int palette_mode_ctx = av1_get_palette_mode_ctx(xd);
 
@@ -1657,14 +1827,14 @@ static AOM_INLINE void update_palette_cdf(MacroBlockD *xd,
                 n - PALETTE_MIN_SIZE, PALETTE_SIZES);
         }
     }
-    uint32_t intra_chroma_mode = cu_ptr->prediction_unit_array->intra_chroma_mode;
+    uint32_t intra_chroma_mode = mbmi->block_mi.uv_mode;// cu_ptr->prediction_unit_array->intra_chroma_mode;
     const int num_planes = 3;
     const int uv_dc_pred =
         num_planes > 1 && intra_chroma_mode == UV_DC_PRED 
         //&& is_chroma_reference(mi_row, mi_col, bsize, 1, 1); AMIR to update mi_row and mi_col
         ;
     if (uv_dc_pred) {
-    //if (mbmi->uv_mode == UV_DC_PRED) {
+    //if (mbmi->block_mi.uv_mode == UV_DC_PRED) {
         const int n = pmi->palette_size[1];
         const int palette_uv_mode_ctx = (pmi->palette_size[0] > 0);
 
@@ -1695,10 +1865,10 @@ static AOM_INLINE void sum_intra_stats(
     const int intraonly, const int mi_row,
     const int mi_col) {
     FRAME_CONTEXT *fc = xd->tile_ctx;
-    const PredictionMode y_mode = cu_ptr->pred_mode;
+    const PredictionMode y_mode = mbmi->block_mi.mode;// cu_ptr->pred_mode;
     //(void)counts;
     const BlockGeom          *blk_geom = get_blk_geom_mds(cu_ptr->mds_idx);
-    const BlockSize bsize = blk_geom->bsize;
+    const BlockSize bsize = mbmi->block_mi.sb_type;// blk_geom->bsize;
 
     if (intraonly) {
 #if CONFIG_ENTROPY_STATS
@@ -1708,7 +1878,7 @@ static AOM_INLINE void sum_intra_stats(
         const int left_ctx = intra_mode_context[left];
         ++counts->kf_y_mode[above_ctx][left_ctx][y_mode];
 #endif  // CONFIG_ENTROPY_STATS
-        update_cdf(get_y_mode_cdf(fc, above_mi, left_mi), y_mode, INTRA_MODES);
+        update_cdf(get_y_mode_cdf(fc, &above_mi->block_mi, &left_mi->block_mi), y_mode, INTRA_MODES);
     }
     else {
 #if CONFIG_ENTROPY_STATS
@@ -1716,7 +1886,7 @@ static AOM_INLINE void sum_intra_stats(
 #endif  // CONFIG_ENTROPY_STATS
         update_cdf(fc->y_mode_cdf[size_group_lookup[bsize]], y_mode, INTRA_MODES);
     }
-    if (cu_ptr->av1xd->use_intrabc == 0 && av1_filter_intra_allowed(
+    if (xd->use_intrabc == 0 && av1_filter_intra_allowed(
         picture_control_set_ptr->parent_pcs_ptr->sequence_control_set_ptr->seq_header.enable_filter_intra, 
         bsize, cu_ptr->palette_info.pmi.palette_size[0], y_mode)) {
     //if (av1_filter_intra_allowed(cm, mbmi)) { AMIR to check
@@ -1742,7 +1912,7 @@ static AOM_INLINE void sum_intra_stats(
             [mbmi->angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA];
 #endif
         update_cdf(fc->angle_delta_cdf[y_mode - V_PRED],
-            cu_ptr->prediction_unit_array[0].angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA,
+            mbmi->block_mi.angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA,
             2 * MAX_ANGLE_DELTA + 1);
     }
 
@@ -1751,7 +1921,7 @@ static AOM_INLINE void sum_intra_stats(
         1/*xd->plane[AOM_PLANE_U].subsampling_y)*/))
         return;
 
-    const int /* UV_PREDICTION_MODE*/ uv_mode = cu_ptr->prediction_unit_array->intra_chroma_mode;
+    const UvPredictionMode uv_mode = mbmi->block_mi.uv_mode;// cu_ptr->prediction_unit_array->intra_chroma_mode;
     const int cfl_allowed = blk_geom->bwidth <= 32 && blk_geom->bheight <= 32;
 #if CONFIG_ENTROPY_STATS
     ++counts->uv_mode[cfl_allowed][y_mode][uv_mode];
@@ -1759,8 +1929,8 @@ static AOM_INLINE void sum_intra_stats(
     update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
         UV_INTRA_MODES - !cfl_allowed);
     if (uv_mode == UV_CFL_PRED) {
-        const int8_t joint_sign = cu_ptr->prediction_unit_array->cfl_alpha_signs;
-        const uint8_t idx = cu_ptr->prediction_unit_array->cfl_alpha_idx;
+        const int8_t joint_sign = mbmi->block_mi.cfl_alpha_signs;// cu_ptr->prediction_unit_array->cfl_alpha_signs;
+        const uint8_t idx       = mbmi->block_mi.cfl_alpha_idx;//cu_ptr->prediction_unit_array->cfl_alpha_idx;
 
 #if CONFIG_ENTROPY_STATS
         ++counts->cfl_sign[joint_sign];
@@ -1783,14 +1953,14 @@ static AOM_INLINE void sum_intra_stats(
             update_cdf(cdf_v, CFL_IDX_V(idx), CFL_ALPHABET_SIZE);
         }
     }
-    if (cu_ptr->prediction_unit_array[0].is_directional_chroma_mode_flag &&
+    if (av1_is_directional_mode(get_uv_mode(uv_mode)) && //cu_ptr->prediction_unit_array[0].is_directional_chroma_mode_flag &&
         av1_use_angle_delta(bsize)) {
 #if CONFIG_ENTROPY_STATS
         ++counts->angle_delta[uv_mode - UV_V_PRED]
             [mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA];
 #endif
         update_cdf(fc->angle_delta_cdf[uv_mode - UV_V_PRED],
-            cu_ptr->prediction_unit_array[0].angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
+            mbmi->block_mi.angle_delta[PLANE_TYPE_UV] /*cu_ptr->prediction_unit_array[0].angle_delta[PLANE_TYPE_UV]*/ + MAX_ANGLE_DELTA,
             2 * MAX_ANGLE_DELTA + 1);
     }
     if (av1_allow_palette(picture_control_set_ptr->parent_pcs_ptr->frm_hdr.allow_screen_content_tools, bsize)) {
@@ -1815,8 +1985,6 @@ static AOM_INLINE void update_stats(
   //  uint32_t blkOriginX = context_ptr->sb_origin_x + blk_geom->origin_x;
   //  uint32_t blkOriginY = context_ptr->sb_origin_y + blk_geom->origin_y;
     BlockSize bsize = blk_geom->bsize;
-    EbBool                   skipCoeff = EB_FALSE;
-    skipCoeff = cu_ptr->block_has_coeff ? 0 : 1; // AN is it set properly?
     FRAME_CONTEXT *fc = xd->tile_ctx;
     const int seg_ref_active = picture_control_set_ptr->parent_pcs_ptr->frm_hdr.segmentation_params.segmentation_enabled &&
         picture_control_set_ptr->parent_pcs_ptr->frm_hdr.segmentation_params.seg_id_pre_skip;
@@ -1824,19 +1992,19 @@ static AOM_INLINE void update_stats(
 
     if (picture_control_set_ptr->parent_pcs_ptr->skip_mode_flag && !seg_ref_active &&
         is_comp_ref_allowed(bsize)) {
-        const int skip_mode_ctx = cu_ptr->skip_flag_context; //av1_get_skip_mode_context(xd);
+        const int skip_mode_ctx = av1_get_skip_mode_context(xd);
 #if CONFIG_ENTROPY_STATS
         td->counts->skip_mode[skip_mode_ctx][mbmi->skip_mode]++;
 #endif
-        update_cdf(fc->skip_mode_cdfs[skip_mode_ctx], cu_ptr->skip_flag, 2);
+        update_cdf(fc->skip_mode_cdfs[skip_mode_ctx], mbmi->block_mi.skip_mode, 2);
     }
 
-    if (!cu_ptr->skip_flag && !seg_ref_active) {
-        const int skip_ctx = cu_ptr->skip_coeff_context;//av1_get_skip_context(xd);
+    if (!mbmi->block_mi.skip_mode && !seg_ref_active) {
+        const int skip_ctx = av1_get_skip_context(xd);
 #if CONFIG_ENTROPY_STATS
         td->counts->skip[skip_ctx][mbmi->skip]++;
 #endif
-        update_cdf(fc->skip_cdfs[skip_ctx], skipCoeff, 2);
+        update_cdf(fc->skip_cdfs[skip_ctx], mbmi->block_mi.skip, 2);
     }
 
 #if CONFIG_ENTROPY_STATS
@@ -1895,10 +2063,9 @@ static AOM_INLINE void update_stats(
 #endif  // CONFIG_ENTROPY_STATS
     }
 
-    if (frame_is_intra_only(picture_control_set_ptr->parent_pcs_ptr) || cu_ptr->skip_flag) return;
-#if 0
-    FRAME_COUNTS *const counts = td->counts;
-    const int inter_block = is_inter_block(mbmi);
+    if (frame_is_intra_only(picture_control_set_ptr->parent_pcs_ptr) || mbmi->block_mi.skip_mode) return;
+    //FRAME_COUNTS *const counts = td->counts;
+    const int inter_block = is_inter_block(&mbmi->block_mi);
 
     if (!seg_ref_active) {
 #if CONFIG_ENTROPY_STATS
@@ -1910,9 +2077,9 @@ static AOM_INLINE void update_stats(
         // reference frame allowed for the segment so exclude it from
         // the reference frame counts used to work out probabilities.
         if (inter_block) {
-            const MV_REFERENCE_FRAME ref0 = mbmi->ref_frame[0];
-            const MV_REFERENCE_FRAME ref1 = mbmi->ref_frame[1];
-            if (current_frame->reference_mode == REFERENCE_MODE_SELECT) {
+            const MvReferenceFrame ref0 = mbmi->block_mi.ref_frame[0];
+            const MvReferenceFrame ref1 = mbmi->block_mi.ref_frame[1];
+            if (picture_control_set_ptr->parent_pcs_ptr->frm_hdr.reference_mode == REFERENCE_MODE_SELECT) {
                 if (is_comp_ref_allowed(bsize)) {
 #if CONFIG_ENTROPY_STATS
                     counts->comp_inter[av1_get_reference_mode_context(xd)]
@@ -1923,7 +2090,7 @@ static AOM_INLINE void update_stats(
             }
 
             if (has_second_ref(mbmi)) {
-                const COMP_REFERENCE_TYPE comp_ref_type = has_uni_comp_refs(mbmi)
+                const CompReferenceType comp_ref_type = has_uni_comp_refs(mbmi)
                     ? UNIDIR_COMP_REFERENCE
                     : BIDIR_COMP_REFERENCE;
                 update_cdf(av1_get_comp_reference_type_cdf(xd), comp_ref_type,
@@ -2043,10 +2210,10 @@ static AOM_INLINE void update_stats(
                 }
             }
 
-            if (cm->seq_params.enable_interintra_compound &&
+            if (picture_control_set_ptr->parent_pcs_ptr->sequence_control_set_ptr->seq_header.enable_interintra_compound &&
                 is_interintra_allowed(mbmi)) {
                 const int bsize_group = size_group_lookup[bsize];
-                if (mbmi->ref_frame[1] == INTRA_FRAME) {
+                if (mbmi->block_mi.ref_frame[1] == INTRA_FRAME) {
 #if CONFIG_ENTROPY_STATS
                     counts->interintra[bsize_group][1]++;
 #endif
@@ -2055,18 +2222,18 @@ static AOM_INLINE void update_stats(
                     counts->interintra_mode[bsize_group][mbmi->interintra_mode]++;
 #endif
                     update_cdf(fc->interintra_mode_cdf[bsize_group],
-                        mbmi->interintra_mode, INTERINTRA_MODES);
+                        cu_ptr->interintra_mode, INTERINTRA_MODES);
                     if (is_interintra_wedge_used(bsize)) {
 #if CONFIG_ENTROPY_STATS
                         counts->wedge_interintra[bsize][mbmi->use_wedge_interintra]++;
 #endif
                         update_cdf(fc->wedge_interintra_cdf[bsize],
-                            mbmi->use_wedge_interintra, 2);
-                        if (mbmi->use_wedge_interintra) {
+                            cu_ptr->use_wedge_interintra, 2);
+                        if (cu_ptr->use_wedge_interintra) {
 #if CONFIG_ENTROPY_STATS
                             counts->wedge_idx[bsize][mbmi->interintra_wedge_index]++;
 #endif
-                            update_cdf(fc->wedge_idx_cdf[bsize], mbmi->interintra_wedge_index,
+                            update_cdf(fc->wedge_idx_cdf[bsize], cu_ptr->interintra_wedge_index,
                                 16);
                         }
                     }
@@ -2079,36 +2246,41 @@ static AOM_INLINE void update_stats(
                 }
             }
 
-            const MOTION_MODE motion_allowed =
-                cm->switchable_motion_mode
-                ? motion_mode_allowed(xd->global_motion, xd, mbmi,
-                    cm->allow_warped_motion)
+            const MotionMode motion_allowed =
+                picture_control_set_ptr->parent_pcs_ptr->frm_hdr.is_motion_mode_switchable
+                ? motion_mode_allowed(picture_control_set_ptr,
+                    cu_ptr, 
+                    bsize,
+                    mbmi->block_mi.ref_frame[0],
+                    mbmi->block_mi.ref_frame[1],
+                    mbmi->block_mi.mode)
+                //motion_mode_allowed(xd->global_motion, xd, mbmi, cm->allow_warped_motion)
                 : SIMPLE_TRANSLATION;
-            if (mbmi->ref_frame[1] != INTRA_FRAME) {
+            if (mbmi->block_mi.ref_frame[1] != INTRA_FRAME) {
                 if (motion_allowed == WARPED_CAUSAL) {
 #if CONFIG_ENTROPY_STATS
                     counts->motion_mode[bsize][mbmi->motion_mode]++;
 #endif
-                    update_cdf(fc->motion_mode_cdf[bsize], mbmi->motion_mode,
+                    update_cdf(fc->motion_mode_cdf[bsize], mbmi->block_mi.motion_mode,
                         MOTION_MODES);
                 }
                 else if (motion_allowed == OBMC_CAUSAL) {
 #if CONFIG_ENTROPY_STATS
                     counts->obmc[bsize][mbmi->motion_mode == OBMC_CAUSAL]++;
 #endif
-                    update_cdf(fc->obmc_cdf[bsize], mbmi->motion_mode == OBMC_CAUSAL, 2);
+                    update_cdf(fc->obmc_cdf[bsize], mbmi->block_mi.motion_mode == OBMC_CAUSAL, 2);
                 }
             }
 
             if (has_second_ref(mbmi)) {
-                assert(current_frame->reference_mode != SINGLE_REFERENCE &&
-                    is_inter_compound_mode(mbmi->mode) &&
-                    mbmi->motion_mode == SIMPLE_TRANSLATION);
+                assert(picture_control_set_ptr->parent_pcs_ptr->frm_hdr.reference_mode != SINGLE_REFERENCE &&
+                    is_inter_compound_mode(mbmi->block_mi.mode) &&
+                    mbmi->block_mi.motion_mode == SIMPLE_TRANSLATION);
 
                 const int masked_compound_used = is_any_masked_compound_used(bsize) &&
-                    cm->seq_params.enable_masked_compound;
+                    picture_control_set_ptr->parent_pcs_ptr->sequence_control_set_ptr->seq_header.enable_masked_compound;
                 if (masked_compound_used) {
-                    const int comp_group_idx_ctx = get_comp_group_idx_context(xd);
+                    const int comp_group_idx_ctx = get_comp_group_idx_context_enc(xd);
 #if CONFIG_ENTROPY_STATS
                     ++counts->comp_group_idx[comp_group_idx_ctx][mbmi->comp_group_idx];
 #endif
@@ -2117,11 +2289,16 @@ static AOM_INLINE void update_stats(
                 }
 
                 if (mbmi->comp_group_idx == 0) {
-                    const int comp_index_ctx = get_comp_index_context(cm, xd);
+                    const int comp_index_ctx = get_comp_index_context_enc(
+                        picture_control_set_ptr->parent_pcs_ptr,
+                        picture_control_set_ptr->parent_pcs_ptr->cur_order_hint,// cur_frame_index,
+                        picture_control_set_ptr->parent_pcs_ptr->ref_order_hint[mbmi->block_mi.ref_frame[0] - 1],// bck_frame_index,
+                        picture_control_set_ptr->parent_pcs_ptr->ref_order_hint[mbmi->block_mi.ref_frame[1] - 1],// fwd_frame_index,
+                        cu_ptr->av1xd);
 #if CONFIG_ENTROPY_STATS
                     ++counts->compound_index[comp_index_ctx][mbmi->compound_idx];
 #endif
-                    update_cdf(fc->compound_index_cdf[comp_index_ctx], mbmi->compound_idx,
+                    update_cdf(fc->compound_index_cdf[comp_index_ctx], mbmi->block_mi.compound_idx,
                         2);
                 }
                 else {
@@ -2132,33 +2309,35 @@ static AOM_INLINE void update_stats(
                             COMPOUND_WEDGE];
 #endif
                         update_cdf(fc->compound_type_cdf[bsize],
-                            mbmi->interinter_comp.type - COMPOUND_WEDGE,
+                            cu_ptr->interinter_comp.type - COMPOUND_WEDGE,
                             MASKED_COMPOUND_TYPES);
                     }
                 }
             }
-            if (mbmi->interinter_comp.type == COMPOUND_WEDGE) {
+            if (cu_ptr->interinter_comp.type == COMPOUND_WEDGE) {
                 if (is_interinter_compound_used(COMPOUND_WEDGE, bsize)) {
 #if CONFIG_ENTROPY_STATS
                     counts->wedge_idx[bsize][mbmi->interinter_comp.wedge_index]++;
 #endif
                     update_cdf(fc->wedge_idx_cdf[bsize],
-                        mbmi->interinter_comp.wedge_index, 16);
+                        cu_ptr->interinter_comp.wedge_index, 16);
                 }
             }
         }
     }
-
-    if (inter_block && cm->interp_filter == SWITCHABLE &&
-        mbmi->motion_mode != WARPED_CAUSAL &&
-        !is_nontrans_global_motion(xd, mbmi)) {
+#if 1
+    if (inter_block && picture_control_set_ptr->parent_pcs_ptr->av1_cm->interp_filter == SWITCHABLE &&
+        mbmi->block_mi.motion_mode != WARPED_CAUSAL &&
+        !is_nontrans_global_motion_EC(mbmi->block_mi.ref_frame[0], mbmi->block_mi.ref_frame[1], cu_ptr, bsize, picture_control_set_ptr->parent_pcs_ptr)/*!is_nontrans_global_motion(xd, mbmi)*/) {
         update_filter_type_cdf(xd, mbmi);
     }
     if (inter_block &&
-        !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
-        const PREDICTION_MODE mode = mbmi->mode;
+        !seg_ref_active/*segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)*/) {
+        const PredictionMode mode = mbmi->block_mi.mode;
+        MvReferenceFrame rf[2];
+        av1_set_ref_frame(rf, cu_ptr->prediction_unit_array[0].ref_frame_type);
         const int16_t mode_ctx =
-            av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
+            Av1ModeContextAnalyzer(cu_ptr->inter_mode_ctx, rf);
         if (has_second_ref(mbmi)) {
 #if CONFIG_ENTROPY_STATS
             ++counts->inter_compound_mode[mode_ctx][INTER_COMPOUND_OFFSET(mode)];
@@ -2167,60 +2346,81 @@ static AOM_INLINE void update_stats(
                 INTER_COMPOUND_OFFSET(mode), INTER_COMPOUND_MODES);
         }
         else {
-            update_inter_mode_stats(fc, counts, mode, mode_ctx);
+            update_inter_mode_stats(fc, /*counts,*/ mode, mode_ctx);
         }
 
-        const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
+        const int new_mv = mbmi->block_mi.mode == NEWMV || mbmi->block_mi.mode == NEW_NEWMV;
         if (new_mv) {
-            const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+            const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->block_mi.ref_frame);
             for (int idx = 0; idx < 2; ++idx) {
-                if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
+                if (xd->ref_mv_count[ref_frame_type] > idx + 1) {
                     const uint8_t drl_ctx =
-                        av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
-                    update_cdf(fc->drl_cdf[drl_ctx], mbmi->ref_mv_idx != idx, 2);
+                        av1_drl_ctx(xd->final_ref_mv_stack, idx);
+                    update_cdf(fc->drl_cdf[drl_ctx], mbmi->block_mi.ref_mv_idx != idx, 2);
 #if CONFIG_ENTROPY_STATS
                     ++counts->drl_mode[drl_ctx][mbmi->ref_mv_idx != idx];
 #endif
-                    if (mbmi->ref_mv_idx == idx) break;
+                    if (mbmi->block_mi.ref_mv_idx == idx) break;
                 }
             }
         }
 
-        if (have_nearmv_in_inter_mode(mbmi->mode)) {
-            const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+        if (have_nearmv_in_inter_mode(mbmi->block_mi.mode)) {
+            const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->block_mi.ref_frame);
             for (int idx = 1; idx < 3; ++idx) {
-                if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
+                if (xd->ref_mv_count[ref_frame_type] > idx + 1) {
                     const uint8_t drl_ctx =
-                        av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
-                    update_cdf(fc->drl_cdf[drl_ctx], mbmi->ref_mv_idx != idx - 1, 2);
+                        av1_drl_ctx(xd->final_ref_mv_stack, idx);
+                    update_cdf(fc->drl_cdf[drl_ctx], mbmi->block_mi.ref_mv_idx != idx - 1, 2);
 #if CONFIG_ENTROPY_STATS
                     ++counts->drl_mode[drl_ctx][mbmi->ref_mv_idx != idx - 1];
 #endif
-                    if (mbmi->ref_mv_idx == idx - 1) break;
+                    if (mbmi->block_mi.ref_mv_idx == idx - 1) break;
                 }
             }
         }
-        if (have_newmv_in_inter_mode(mbmi->mode)) {
-            const int allow_hp = cm->cur_frame_force_integer_mv
+        if (have_newmv_in_inter_mode(mbmi->block_mi.mode)) {
+            const int allow_hp = picture_control_set_ptr->parent_pcs_ptr->frm_hdr.force_integer_mv
                 ? MV_SUBPEL_NONE
-                : cm->allow_high_precision_mv;
+                : picture_control_set_ptr->parent_pcs_ptr->frm_hdr.allow_high_precision_mv;
             if (new_mv) {
+                IntMv ref_mv;
                 for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-                    const int_mv ref_mv = av1_get_ref_mv(x, ref);
-                    av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
+                   // const int_mv ref_mv = av1_get_ref_mv(x, ref);
+                    ref_mv = cu_ptr->predmv[ref];
+
+                    MV mv;
+                    mv.row = cu_ptr->prediction_unit_array[0].mv[ref].y;
+                    mv.col = cu_ptr->prediction_unit_array[0].mv[ref].x;
+                    if (cu_ptr->prediction_unit_array[0].inter_pred_direction_index == UNI_PRED_LIST_1)
+                    {
+                        mv.row = cu_ptr->prediction_unit_array[0].mv[1].y;
+                        mv.col = cu_ptr->prediction_unit_array[0].mv[1].x;
+                    }
+                    av1_update_mv_stats(&mbmi->block_mi.mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
                         allow_hp);
                 }
             }
-            else if (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV) {
-                const int ref = 1;
-                const int_mv ref_mv = av1_get_ref_mv(x, ref);
-                av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
+            else if (mbmi->block_mi.mode == NEAREST_NEWMV || mbmi->block_mi.mode == NEAR_NEWMV) {
+                //const int ref = 1;
+               // const int_mv ref_mv = av1_get_ref_mv(x, ref);
+                IntMv ref_mv = cu_ptr->predmv[1];
+
+                MV mv;
+                mv.row = cu_ptr->prediction_unit_array[0].mv[1].y;
+                mv.col = cu_ptr->prediction_unit_array[0].mv[1].x;
+                av1_update_mv_stats(&mv,/*&mbmi->block_mi.mv[ref].as_mv,*/ &ref_mv.as_mv, &fc->nmvc,
                     allow_hp);
             }
-            else if (mbmi->mode == NEW_NEARESTMV || mbmi->mode == NEW_NEARMV) {
-                const int ref = 0;
-                const int_mv ref_mv = av1_get_ref_mv(x, ref);
-                av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
+            else if (mbmi->block_mi.mode == NEW_NEARESTMV || mbmi->block_mi.mode == NEW_NEARMV) {
+               // const int ref = 0;
+               // const int_mv ref_mv = av1_get_ref_mv(x, ref);
+                IntMv ref_mv = cu_ptr->predmv[0];
+
+                MV mv;
+                mv.row = cu_ptr->prediction_unit_array[0].mv[0].y;
+                mv.col = cu_ptr->prediction_unit_array[0].mv[0].x;
+                av1_update_mv_stats(&mv, /*&mbmi->block_mi.mv[ref].as_mv,*/ &ref_mv.as_mv, &fc->nmvc,
                     allow_hp);
             }
         }
