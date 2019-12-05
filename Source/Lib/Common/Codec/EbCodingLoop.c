@@ -1475,26 +1475,26 @@ void move_cu_data(
 
 #if RATE_ESTIMATION_UPDATE
 static INLINE int av1_get_skip_mode_context(const MacroBlockD *xd) {
-    const BlockModeInfo *const above_mi = &xd->above_mbmi->block_mi;
-    const BlockModeInfo *const left_mi = &xd->left_mbmi->block_mi;
-    const int above_skip_mode = above_mi ? above_mi->skip_mode : 0;
-    const int left_skip_mode = left_mi ? left_mi->skip_mode : 0;
+    const MbModeInfo *const above_mi = xd->above_mbmi;
+    const MbModeInfo *const left_mi = xd->left_mbmi;
+    const int above_skip_mode = above_mi ? above_mi->block_mi.skip_mode : 0;
+    const int left_skip_mode = left_mi ? left_mi->block_mi.skip_mode : 0;
     return above_skip_mode + left_skip_mode;
 }
 static INLINE int av1_get_skip_context(const MacroBlockD *xd) {
-    const BlockModeInfo *const above_mi = &xd->above_mbmi->block_mi;
-    const BlockModeInfo *const left_mi = &xd->left_mbmi->block_mi;
-    const int above_skip = above_mi ? above_mi->skip : 0;
-    const int left_skip = left_mi ? left_mi->skip : 0;
+    const MbModeInfo *const above_mi = xd->above_mbmi;
+    const MbModeInfo *const left_mi = xd->left_mbmi;
+    const int above_skip = above_mi ? above_mi->block_mi.skip : 0;
+    const int left_skip = left_mi ? left_mi->block_mi.skip : 0;
     return above_skip + left_skip;
 }
 
 // to add to ebCommonUtils.h
 static INLINE AomCdfProb *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
-    const BlockModeInfo *above_mi, const BlockModeInfo *left_mi)
+    const MbModeInfo *above_mi, const MbModeInfo *left_mi)
 {
-    const PredictionMode above = above_mi ? above_mi->mode : DC_PRED;
-    const PredictionMode left = left_mi ? left_mi->mode : DC_PRED;
+    const PredictionMode above = above_mi ? above_mi->block_mi.mode : DC_PRED;
+    const PredictionMode left = left_mi ? left_mi->block_mi.mode : DC_PRED;
     const int above_ctx = intra_mode_context[above];
     const int left_ctx = intra_mode_context[left];
     return tile_ctx->kf_y_cdf[above_ctx][left_ctx];
@@ -1522,67 +1522,100 @@ int av1_get_palette_bsize_ctx(BlockSize bsize);
 
 int av1_get_palette_mode_ctx(const MacroBlockD *xd);
 
-INLINE int has_second_ref(const MbModeInfo *mbmi);
+extern INLINE int has_uni_comp_refs(const MbModeInfo *mbmi);
 
-INLINE int has_uni_comp_refs(const MbModeInfo *mbmi);
+// The mode info data structure has a one element border above and to the
+// left of the entries corresponding to real macroblocks.
+// The prediction flags in these dummy entries are initialized to 0.
+// 0 - inter/inter, inter/--, --/inter, --/--
+// 1 - intra/inter, inter/intra
+// 2 - intra/--, --/intra
+// 3 - intra/intra
+int av1_get_intra_inter_context(const MacroBlockD *xd) {
+    const MbModeInfo *const above_mbmi = xd->above_mbmi;
+    const MbModeInfo *const left_mbmi = xd->left_mbmi;
+    const int has_above = xd->up_available;
+    const int has_left = xd->left_available;
 
-int av1_get_intra_inter_context(const MacroBlockD *xd);
+    if (has_above && has_left) {  // both edges available
+        const int above_intra = !is_inter_block(&above_mbmi->block_mi);
+        const int left_intra = !is_inter_block(&left_mbmi->block_mi);
+        return left_intra && above_intra ? 3 : left_intra || above_intra;
+    }
+    else if (has_above || has_left) {  // one edge available
+        return 2 * !is_inter_block(has_above ? &above_mbmi->block_mi : &left_mbmi->block_mi);
+    }
+    else {
+        return 0;
+    }
+}
+static INLINE int has_second_ref(const MbModeInfo *mbmi) {
+    return mbmi->block_mi.ref_frame[1] > INTRA_FRAME;
+}
+static INLINE int has_uni_comp_refs(const MbModeInfo *mbmi) {
+    return has_second_ref(mbmi) && (!((mbmi->block_mi.ref_frame[0] >= BWDREF_FRAME) ^
+        (mbmi->block_mi.ref_frame[1] >= BWDREF_FRAME)));
+}
+int av1_get_reference_mode_context_new(const MacroBlockD *xd);
+static INLINE AomCdfProb *av1_get_reference_mode_cdf(const MacroBlockD *xd) {
+    return xd->tile_ctx->comp_inter_cdf[av1_get_reference_mode_context_new(xd)];
+}
 
-INLINE AomCdfProb *av1_get_reference_mode_cdf(const MacroBlockD *xd);
-
-//int av1_get_comp_reference_type_context_new(const MacroBlockD *xd);
+int av1_get_comp_reference_type_context_new(const MacroBlockD *xd);
 
 // == Uni-directional contexts ==
 
-//int eb_av1_get_pred_context_uni_comp_ref_p(const MacroBlockD *xd);
+int eb_av1_get_pred_context_uni_comp_ref_p(const MacroBlockD *xd);
 
-//int eb_av1_get_pred_context_uni_comp_ref_p1(const MacroBlockD *xd);
+int eb_av1_get_pred_context_uni_comp_ref_p1(const MacroBlockD *xd);
 
-//int eb_av1_get_pred_context_uni_comp_ref_p2(const MacroBlockD *xd);
+int eb_av1_get_pred_context_uni_comp_ref_p2(const MacroBlockD *xd);
+static INLINE AomCdfProb *av1_get_comp_reference_type_cdf(
+    const MacroBlockD *xd) {
+    const int pred_context = av1_get_comp_reference_type_context_new(xd);
+    return xd->tile_ctx->comp_ref_type_cdf[pred_context];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_uni_comp_ref_p(xd);
+    return xd->tile_ctx->uni_comp_ref_cdf[pred_context][0];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p1(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_uni_comp_ref_p1(xd);
+    return xd->tile_ctx->uni_comp_ref_cdf[pred_context][1];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p2(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_uni_comp_ref_p2(xd);
+    return xd->tile_ctx->uni_comp_ref_cdf[pred_context][2];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p(const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_comp_ref_p(xd);
+    return xd->tile_ctx->comp_ref_cdf[pred_context][0];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p1(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_comp_ref_p1(xd);
+    return xd->tile_ctx->comp_ref_cdf[pred_context][1];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p2(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_comp_ref_p2(xd);
+    return xd->tile_ctx->comp_ref_cdf[pred_context][2];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_comp_bwdref_p(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_comp_bwdref_p(xd);
+    return xd->tile_ctx->comp_bwdref_cdf[pred_context][0];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_comp_bwdref_p1(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_comp_bwdref_p1(xd);
+    return xd->tile_ctx->comp_bwdref_cdf[pred_context][1];
+}
 
-INLINE AomCdfProb *av1_get_comp_reference_type_cdf(
-    const MacroBlockD *xd);
 
-INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p1(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p2(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p(const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p1(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p2(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_comp_bwdref_p(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_comp_bwdref_p1(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p1(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p2(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p3(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p4(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p5(
-    const MacroBlockD *xd);
-
-INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p6(
-    const MacroBlockD *xd);
 
 // For the bit to signal whether the single reference is ALTREF_FRAME or
 // non-ALTREF backward reference frame, knowing that it shall be either of
@@ -1605,7 +1638,54 @@ int32_t eb_av1_get_pred_context_single_ref_p5(const MacroBlockD *xd);
 // BWDREF_FRAME, knowing that it shall be either of these 2 choices.
 int32_t eb_av1_get_pred_context_single_ref_p6(const MacroBlockD *xd);
 
-INLINE int is_interintra_allowed(const MbModeInfo *mbmi);
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p1(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p1(xd)][0];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p2(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p2(xd)][1];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p3(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p3(xd)][2];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p4(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p4(xd)][3];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p5(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p5(xd)][4];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p6(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p6(xd)][5];
+}
+
+static INLINE int is_interintra_allowed_bsize(const BlockSize bsize) {
+    return (bsize >= BLOCK_8X8) && (bsize <= BLOCK_32X32);
+}
+
+static INLINE int is_interintra_allowed_mode(const PredictionMode mode) {
+    return (mode >= SINGLE_INTER_MODE_START) && (mode < SINGLE_INTER_MODE_END);
+}
+
+static INLINE int is_interintra_allowed_ref(const MvReferenceFrame rf[2]) {
+    return (rf[0] > INTRA_FRAME) && (rf[1] <= INTRA_FRAME);
+}
+
+static INLINE int is_interintra_allowed(const MbModeInfo *mbmi) {
+    return is_interintra_allowed_bsize(mbmi->block_mi.sb_type) &&
+        is_interintra_allowed_mode(mbmi->block_mi.mode) &&
+        is_interintra_allowed_ref(mbmi->block_mi.ref_frame);
+}
 
 int get_comp_group_idx_context_enc(const MacroBlockD *xd);
 
@@ -1622,10 +1702,27 @@ int32_t is_nontrans_global_motion_EC(
     BlockSize sb_type,
     PictureParentControlSet   *pcs_ptr);
 
-int16_t Av1ModeContextAnalyzer(
-    const int16_t *const mode_context, const MvReferenceFrame *const rf);
+extern  int8_t av1_ref_frame_type(const MvReferenceFrame *const rf);
+uint16_t compound_mode_ctx_map_[3][COMP_NEWMV_CTXS] = {
+   { 0, 1, 1, 1, 1 },
+   { 1, 2, 3, 4, 4 },
+   { 4, 4, 5, 6, 7 },
+};
+static int16_t Av1ModeContextAnalyzer(
+    const int16_t *const mode_context, const MvReferenceFrame *const rf) {
+    const int8_t ref_frame = av1_ref_frame_type(rf);
 
-int8_t av1_ref_frame_type(const MvReferenceFrame *const rf);
+    if (rf[1] <= INTRA_FRAME) return mode_context[ref_frame];
+
+    const int16_t newmv_ctx = mode_context[ref_frame] & NEWMV_CTX_MASK;
+    const int16_t refmv_ctx =
+        (mode_context[ref_frame] >> REFMV_OFFSET) & REFMV_CTX_MASK;
+    assert((refmv_ctx >> 1) < 3);
+    const int16_t comp_ctx = compound_mode_ctx_map_[refmv_ctx >> 1][AOMMIN(
+        newmv_ctx, COMP_NEWMV_CTXS - 1)];
+    return comp_ctx;
+}
+
 
 uint8_t av1_drl_ctx(const CandidateMv *ref_mv_stack, int32_t ref_idx);
 
@@ -1755,7 +1852,7 @@ void av1_update_mv_stats(const MV *mv, const MV *ref, NmvContext *mvctx,
     if (mv_joint_horizontal(j))
         update_mv_component_stats(diff.col, &mvctx->comps[1], precision);
 }
-#if 1
+
 static AOM_INLINE void update_inter_mode_stats(FRAME_CONTEXT *fc,
    // FRAME_COUNTS *counts,
     PredictionMode mode,
@@ -1796,7 +1893,7 @@ static AOM_INLINE void update_inter_mode_stats(FRAME_CONTEXT *fc,
 #endif
     update_cdf(fc->refmv_cdf[mode_ctx], mode != NEARESTMV, 2);
 }
-#endif
+
 static AOM_INLINE void update_palette_cdf(MacroBlockD *xd,
     const MbModeInfo *const mbmi,
     CodingUnit            *cu_ptr
@@ -1807,7 +1904,6 @@ static AOM_INLINE void update_palette_cdf(MacroBlockD *xd,
     const BlockSize bsize = blk_geom->bsize;
     const PaletteModeInfo *const pmi = &cu_ptr->palette_info.pmi;
     const int palette_bsize_ctx = av1_get_palette_bsize_ctx(bsize);
-
   //  (void)counts;
 
     if (mbmi->block_mi.mode == DC_PRED) {
@@ -1868,7 +1964,7 @@ static AOM_INLINE void sum_intra_stats(
     const PredictionMode y_mode = mbmi->block_mi.mode;// cu_ptr->pred_mode;
     //(void)counts;
     const BlockGeom          *blk_geom = get_blk_geom_mds(cu_ptr->mds_idx);
-    const BlockSize bsize = mbmi->block_mi.sb_type;// blk_geom->bsize;
+    const BlockSize bsize = mbmi->block_mi.sb_type;
 
     if (intraonly) {
 #if CONFIG_ENTROPY_STATS
@@ -1878,7 +1974,7 @@ static AOM_INLINE void sum_intra_stats(
         const int left_ctx = intra_mode_context[left];
         ++counts->kf_y_mode[above_ctx][left_ctx][y_mode];
 #endif  // CONFIG_ENTROPY_STATS
-        update_cdf(get_y_mode_cdf(fc, &above_mi->block_mi, &left_mi->block_mi), y_mode, INTRA_MODES);
+        update_cdf(get_y_mode_cdf(fc, above_mi, left_mi), y_mode, INTRA_MODES);
     }
     else {
 #if CONFIG_ENTROPY_STATS
@@ -1889,7 +1985,6 @@ static AOM_INLINE void sum_intra_stats(
     if (xd->use_intrabc == 0 && av1_filter_intra_allowed(
         picture_control_set_ptr->parent_pcs_ptr->sequence_control_set_ptr->seq_header.enable_filter_intra, 
         bsize, cu_ptr->palette_info.pmi.palette_size[0], y_mode)) {
-    //if (av1_filter_intra_allowed(cm, mbmi)) { AMIR to check
         const int use_filter_intra_mode =
             cu_ptr->filter_intra_mode != FILTER_INTRA_MODES;
 #if CONFIG_ENTROPY_STATS
@@ -1915,10 +2010,10 @@ static AOM_INLINE void sum_intra_stats(
             mbmi->block_mi.angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA,
             2 * MAX_ANGLE_DELTA + 1);
     }
-
+    uint8_t   subSamplingX = 1; // NM - subsampling_x is harcoded to 1 for 420 chroma sampling.
+    uint8_t   subSamplingY = 1; // NM - subsampling_y is harcoded to 1 for 420 chroma sampling.
     if (!is_chroma_reference(mi_row, mi_col, bsize,
-        1,/*xd->plane[AOM_PLANE_U].subsampling_x,*/
-        1/*xd->plane[AOM_PLANE_U].subsampling_y)*/))
+        subSamplingX, subSamplingY)) 
         return;
 
     const UvPredictionMode uv_mode = mbmi->block_mi.uv_mode;// cu_ptr->prediction_unit_array->intra_chroma_mode;
@@ -1988,7 +2083,7 @@ static AOM_INLINE void update_stats(
     FRAME_CONTEXT *fc = xd->tile_ctx;
     const int seg_ref_active = picture_control_set_ptr->parent_pcs_ptr->frm_hdr.segmentation_params.segmentation_enabled &&
         picture_control_set_ptr->parent_pcs_ptr->frm_hdr.segmentation_params.seg_id_pre_skip;
-       // segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
+       // segfeature_active(&cm->seg, mbmi->block_mi.segment_id, SEG_LVL_REF_FRAME); // AMIR to check
 
     if (picture_control_set_ptr->parent_pcs_ptr->skip_mode_flag && !seg_ref_active &&
         is_comp_ref_allowed(bsize)) {
@@ -2325,14 +2420,14 @@ static AOM_INLINE void update_stats(
             }
         }
     }
-#if 1
+
     if (inter_block && picture_control_set_ptr->parent_pcs_ptr->av1_cm->interp_filter == SWITCHABLE &&
         mbmi->block_mi.motion_mode != WARPED_CAUSAL &&
         !is_nontrans_global_motion_EC(mbmi->block_mi.ref_frame[0], mbmi->block_mi.ref_frame[1], cu_ptr, bsize, picture_control_set_ptr->parent_pcs_ptr)/*!is_nontrans_global_motion(xd, mbmi)*/) {
         update_filter_type_cdf(xd, mbmi);
     }
     if (inter_block &&
-        !seg_ref_active/*segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)*/) {
+        !seg_ref_active/*segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)*/) { // AMIR to check
         const PredictionMode mode = mbmi->block_mi.mode;
         MvReferenceFrame rf[2];
         av1_set_ref_frame(rf, cu_ptr->prediction_unit_array[0].ref_frame_type);
@@ -2425,7 +2520,6 @@ static AOM_INLINE void update_stats(
             }
         }
     }
-#endif
 }
 #endif
 void perform_intra_coding_loop(
@@ -4752,7 +4846,16 @@ EB_EXTERN void av1_encode_pass(
                     context_ptr->cu_origin_y,
                     blk_geom,
                     picture_control_set_ptr);
-
+#if RATE_ESTIMATION_UPDATE
+                if (picture_control_set_ptr->update_cdf) {
+                    cu_ptr->av1xd->tile_ctx = &picture_control_set_ptr->ec_ctx_array[tbAddr];
+                    update_stats(
+                        picture_control_set_ptr,
+                        cu_ptr,
+                        context_ptr->cu_origin_y >> MI_SIZE_LOG2,
+                        context_ptr->cu_origin_x >> MI_SIZE_LOG2);
+                }
+#endif
                 if (dlfEnableFlag)
                 {
                 }

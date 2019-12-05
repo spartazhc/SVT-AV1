@@ -1446,7 +1446,7 @@ void update_av1_mi_map(
             {
                 miPtr[miX + miY * mi_stride].mbmi.block_mi.mode = cu_ptr->pred_mode;
                 miPtr[miX + miY * mi_stride].mbmi.block_mi.uv_mode = cu_ptr->prediction_unit_array->intra_chroma_mode;
-                if (cu_ptr->prediction_mode_flag == INTRA_MODE && cu_ptr->pred_mode == INTRA_MODE_4x4) {
+                if (cu_ptr->prediction_mode_flag == INTRA_MODE && cu_ptr->pred_mode == INTRA_MODE_4x4) { // AMIR to clean up
                     miPtr[miX + miY * mi_stride].mbmi.tx_size = 0;
                     miPtr[miX + miY * mi_stride].mbmi.block_mi.sb_type = BLOCK_4X4;
                     miPtr[miX + miY * mi_stride].mbmi.tx_depth = cu_ptr->tx_depth;
@@ -1498,7 +1498,16 @@ void update_av1_mi_map(
             //needed for CDEF
             miPtr[miX + miY * mi_stride].mbmi.block_mi.skip = cu_ptr->block_has_coeff ? EB_FALSE : EB_TRUE;
 #if RATE_ESTIMATION_UPDATE
-            // Add skip_mode
+            miPtr[miX + miY * mi_stride].mbmi.block_mi.skip_mode = (int8_t)cu_ptr->skip_flag;
+            miPtr[miX + miY * mi_stride].mbmi.block_mi.segment_id = cu_ptr->segment_id;
+            miPtr[miX + miY * mi_stride].mbmi.block_mi.seg_id_predicted = cu_ptr->seg_id_predicted;
+            miPtr[miX + miY * mi_stride].mbmi.block_mi.ref_mv_idx = cu_ptr->drl_index;
+            miPtr[miX + miY * mi_stride].mbmi.block_mi.motion_mode = cu_ptr->prediction_unit_array[0].motion_mode;
+            //AMIR to check palette_size// compound_mode filter_intra_mode_info,inter_inter_compound, is_inter_intra
+            miPtr[miX + miY * mi_stride].mbmi.block_mi.cfl_alpha_idx = cu_ptr->prediction_unit_array->cfl_alpha_idx;
+            miPtr[miX + miY * mi_stride].mbmi.block_mi.cfl_alpha_signs = cu_ptr->prediction_unit_array->cfl_alpha_signs;
+            miPtr[miX + miY * mi_stride].mbmi.block_mi.angle_delta[PLANE_TYPE_Y] = cu_ptr->prediction_unit_array[0].angle_delta[PLANE_TYPE_Y];
+            miPtr[miX + miY * mi_stride].mbmi.block_mi.angle_delta[PLANE_TYPE_UV] = cu_ptr->prediction_unit_array[0].angle_delta[PLANE_TYPE_UV];
 #endif
         }
     }

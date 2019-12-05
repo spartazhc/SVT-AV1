@@ -1809,12 +1809,17 @@ void* enc_dec_kernel(void *input_ptr)
                         else
                             picture_control_set_ptr->ec_ctx_array[sb_index] = picture_control_set_ptr->ec_ctx_array[sb_index - 1];
 #endif
-
+#if RATE_ESTIMATION_UPDATE
+                        av1_estimate_syntax_rate(
+                            &picture_control_set_ptr->rate_est_array[sb_index],
+                            picture_control_set_ptr->slice_type == I_SLICE,
+                            &picture_control_set_ptr->ec_ctx_array[sb_index]);
+#else
                         //construct the tables using the latest CDFs : Coeff Only here ---to check if I am using all the uptodate CDFs here
                         av1_estimate_syntax_rate___partial(
                             &picture_control_set_ptr->rate_est_array[sb_index],
                             &picture_control_set_ptr->ec_ctx_array[sb_index]);
-
+#endif
                         av1_estimate_coefficients_rate(
                             &picture_control_set_ptr->rate_est_array[sb_index],
                             &picture_control_set_ptr->ec_ctx_array[sb_index]);
