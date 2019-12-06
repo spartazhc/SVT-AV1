@@ -236,6 +236,9 @@ static void ResetEncodePassNeighborArrays(PictureControlSet *picture_control_set
     neighbor_array_unit_reset(picture_control_set_ptr->ep_luma_dc_sign_level_coeff_neighbor_array);
     neighbor_array_unit_reset(picture_control_set_ptr->ep_cb_dc_sign_level_coeff_neighbor_array);
     neighbor_array_unit_reset(picture_control_set_ptr->ep_cr_dc_sign_level_coeff_neighbor_array);
+#if RATE_ESTIMATION_UPDATE
+    neighbor_array_unit_reset(picture_control_set_ptr->ep_partition_context_neighbor_array);
+#endif
     // TODO(Joel): 8-bit ep_luma_recon_neighbor_array (Cb,Cr) when is16bit==0?
     EbBool is16bit = (EbBool)(picture_control_set_ptr->parent_pcs_ptr->sequence_control_set_ptr->static_config.encoder_bit_depth > EB_8BIT);
     if (is16bit) {
@@ -1814,6 +1817,12 @@ void* enc_dec_kernel(void *input_ptr)
                             &picture_control_set_ptr->rate_est_array[sb_index],
                             picture_control_set_ptr->slice_type == I_SLICE,
                             &picture_control_set_ptr->ec_ctx_array[sb_index]);
+
+                        // Initial Rate Estimatimation of the Motion vectors
+                        av1_estimate_mv_rate(
+                            picture_control_set_ptr,
+                            &picture_control_set_ptr->rate_est_array[sb_index],
+                            &picture_control_set_ptr->ec_ctx_array[sb_index]);
 #else
                         //construct the tables using the latest CDFs : Coeff Only here ---to check if I am using all the uptodate CDFs here
                         av1_estimate_syntax_rate___partial(
@@ -1828,6 +1837,10 @@ void* enc_dec_kernel(void *input_ptr)
                         uint32_t  candidateIndex;
                         for (candidateIndex = 0; candidateIndex < MODE_DECISION_CANDIDATE_MAX_COUNT; ++candidateIndex)
                             context_ptr->md_context->fast_candidate_ptr_array[candidateIndex]->md_rate_estimation_ptr = &picture_control_set_ptr->rate_est_array[sb_index];
+#if RATE_ESTIMATION_UPDATE
+                        context_ptr->md_context->md_rate_estimation_ptr = &picture_control_set_ptr->rate_est_array[sb_index];
+
+#endif
                     }
                     // Configure the LCU
                     mode_decision_configure_lcu(

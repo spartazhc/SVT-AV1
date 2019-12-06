@@ -2574,7 +2574,9 @@ EbErrorType signal_derivation_mode_decision_config_kernel_oq(
             picture_control_set_ptr->update_cdf = 0;
     else
     picture_control_set_ptr->update_cdf = (picture_control_set_ptr->parent_pcs_ptr->enc_mode <= ENC_M5) ? 1 : 0;
-
+#if REU_OFF
+    picture_control_set_ptr->update_cdf = 0;
+#endif
     if(picture_control_set_ptr->update_cdf)
         assert(sequence_control_set_ptr->cdf_mode == 0 && "use cdf_mode 0");
 #if FILTER_INTRA_FLAG
@@ -3071,7 +3073,11 @@ void* mode_decision_configuration_kernel(void *input_ptr)
         av1_estimate_mv_rate(
             picture_control_set_ptr,
             md_rate_estimation_array,
+#if RATE_ESTIMATION_UPDATE
+            picture_control_set_ptr->coeff_est_entropy_coder_ptr->fc);
+#else
             &picture_control_set_ptr->coeff_est_entropy_coder_ptr->fc->nmvc);
+#endif
 
         // Initial Rate Estimatimation of the quantized coefficients
         av1_estimate_coefficients_rate(

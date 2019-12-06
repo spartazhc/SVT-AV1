@@ -1779,7 +1779,16 @@ int av1_get_pred_context_switchable_interp(const MacroBlockD *xd, int dir) {
 
     return filter_type_ctx;
 }
-
+// Return the number of elements in the partition CDF when
+// partitioning the (square) block with luma block size of bsize.
+static INLINE int32_t partition_cdf_length(BlockSize bsize) {
+    if (bsize <= BLOCK_8X8)
+        return PARTITION_TYPES;
+    else if (bsize == BLOCK_128X128)
+        return EXT_PARTITION_TYPES - 2;
+    else
+        return EXT_PARTITION_TYPES;
+}
 typedef uint32_t InterpFilters;
 static INLINE InterpFilter av1_extract_interp_filter(InterpFilters filters,
     int32_t x_filter);
@@ -2521,6 +2530,95 @@ static AOM_INLINE void update_stats(
         }
     }
 }
+static AOM_INLINE void update_part_stats(
+    PictureControlSet  *picture_control_set_ptr,
+    CodingUnit         *cu_ptr,
+    int                 mi_row, 
+    int                 mi_col) {
+
+    const AV1_COMMON *const cm = picture_control_set_ptr->parent_pcs_ptr->av1_cm;
+    MacroBlockD *xd = cu_ptr->av1xd;
+    const MbModeInfo *const mbmi = &xd->mi[0]->mbmi;
+
+    const BlockGeom          *blk_geom = get_blk_geom_mds(cu_ptr->mds_idx);
+    BlockSize bsize = blk_geom->bsize;
+    FRAME_CONTEXT *fc = xd->tile_ctx;
+
+    if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return;
+    const int hbs = mi_size_wide[bsize] / 2;
+    const int is_partition_root = bsize >= BLOCK_8X8;
+    if(is_partition_root){
+        const PartitionType partition = cu_ptr->part;// pc_tree->partitioning;
+        int ctx;
+
+        NeighborArrayUnit    *partition_context_neighbor_array = picture_control_set_ptr->ep_partition_context_neighbor_array;
+        uint32_t partition_context_left_neighbor_index = get_neighbor_array_unit_left_index(
+            partition_context_neighbor_array,
+            (mi_row<< MI_SIZE_LOG2));
+        uint32_t partition_context_top_neighbor_index = get_neighbor_array_unit_top_index(
+            partition_context_neighbor_array,
+            (mi_col << MI_SIZE_LOG2));
+
+        const PartitionContextType above_ctx = (((PartitionContext*)partition_context_neighbor_array->top_array)[partition_context_top_neighbor_index].above == (int8_t)INVALID_NEIGHBOR_DATA) ?
+            0 : ((PartitionContext*)partition_context_neighbor_array->top_array)[partition_context_top_neighbor_index].above;
+        const PartitionContextType left_ctx = (((PartitionContext*)partition_context_neighbor_array->left_array)[partition_context_left_neighbor_index].left == (int8_t)INVALID_NEIGHBOR_DATA) ?
+            0 : ((PartitionContext*)partition_context_neighbor_array->left_array)[partition_context_left_neighbor_index].left;
+
+        const int32_t bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
+        int32_t above = (above_ctx >> bsl) & 1, left = (left_ctx >> bsl) & 1;
+
+        assert(mi_size_wide_log2[bsize] == mi_size_high_log2[bsize]);
+        assert(bsl >= 0);
+
+        ctx = (left * 2 + above) + bsl * PARTITION_PLOFFSET;
+
+        const int has_rows = (mi_row + hbs) < cm->mi_rows;
+        const int has_cols = (mi_col + hbs) < cm->mi_cols;
+
+        if (has_rows && has_cols) {
+#if CONFIG_ENTROPY_STATS
+            td->counts->partition[ctx][partition]++;
+#endif
+            if (picture_control_set_ptr->update_cdf) {
+               update_cdf(fc->partition_cdf[ctx], partition,
+                    partition_cdf_length(bsize));
+
+            }
+        }
+    }
+    //if (!hasRows && !hasCols) {
+    //    assert(p == PARTITION_SPLIT);
+    //    return;
+    //}
+
+    //if (hasRows && hasCols) {
+    //    aom_write_symbol(
+    //        ec_writer,
+    //        p,
+    //        frameContext->partition_cdf[contextIndex],
+    //        partition_cdf_length(bsize));
+    //}
+    //else if (!hasRows && hasCols) {
+    //    AomCdfProb cdf[CDF_SIZE(2)];
+    //    partition_gather_vert_alike(cdf, frameContext->partition_cdf[contextIndex], bsize);
+    //    aom_write_symbol(
+    //        ec_writer,
+    //        p == PARTITION_SPLIT,
+    //        cdf,
+    //        2);
+    //}
+    //else {
+    //    AomCdfProb cdf[CDF_SIZE(2)];
+    //    partition_gather_horz_alike(cdf, frameContext->partition_cdf[contextIndex], bsize);
+    //    aom_write_symbol(
+    //        ec_writer,
+    //        p == PARTITION_SPLIT,
+    //        cdf,
+    //        2);
+    //}
+    printf("");
+}
+
 #endif
 void perform_intra_coding_loop(
     PictureControlSet  *picture_control_set_ptr,
@@ -3389,6 +3487,16 @@ EB_EXTERN void av1_encode_pass(
         const BlockGeom * blk_geom = context_ptr->blk_geom = get_blk_geom_mds(blk_it);
         UNUSED(blk_geom);
         sb_ptr->cu_partition_array[blk_it] = context_ptr->md_context->md_cu_arr_nsq[blk_it].part;
+#if RATE_ESTIMATION_UPDATE
+        if (picture_control_set_ptr->update_cdf) {
+            cu_ptr->av1xd->tile_ctx = &picture_control_set_ptr->ec_ctx_array[tbAddr];
+            update_part_stats(
+                picture_control_set_ptr,
+                cu_ptr,
+                context_ptr->cu_origin_y >> MI_SIZE_LOG2,
+                context_ptr->cu_origin_x >> MI_SIZE_LOG2);
+        }
+#endif
         if (part != PARTITION_SPLIT && sequence_control_set_ptr->sb_geom[tbAddr].block_is_allowed[blk_it]) {
             int32_t offset_d1 = ns_blk_offset[(int32_t)part]; //cu_ptr->best_d1_blk; // TOCKECK
             int32_t num_d1_block = ns_blk_num[(int32_t)part]; // context_ptr->blk_geom->totns; // TOCKECK
@@ -4848,6 +4956,20 @@ EB_EXTERN void av1_encode_pass(
                     picture_control_set_ptr);
 #if RATE_ESTIMATION_UPDATE
                 if (picture_control_set_ptr->update_cdf) {
+                    // Update the partition Neighbor Array   
+                    PartitionContext         partition;
+                    partition.above = partition_context_lookup[blk_geom->bsize].above;
+                    partition.left = partition_context_lookup[blk_geom->bsize].left;
+
+                    neighbor_array_unit_mode_write(
+                        picture_control_set_ptr->ep_partition_context_neighbor_array,
+                        (uint8_t*)&partition,
+                        context_ptr->cu_origin_x,
+                        context_ptr->cu_origin_y,
+                        blk_geom->bwidth,
+                        blk_geom->bheight,
+                        NEIGHBOR_ARRAY_UNIT_TOP_AND_LEFT_ONLY_MASK);
+
                     cu_ptr->av1xd->tile_ctx = &picture_control_set_ptr->ec_ctx_array[tbAddr];
                     update_stats(
                         picture_control_set_ptr,

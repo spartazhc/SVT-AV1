@@ -325,7 +325,11 @@ extern "C" {
     extern void av1_estimate_mv_rate(
         struct PictureControlSet     *picture_control_set_ptr,
         MdRateEstimationContext  *md_rate_estimation_array,
+#if RATE_ESTIMATION_UPDATE
+        FRAME_CONTEXT            *fc);
+#else
         NmvContext                *nmv_ctx);
+#endif
 
 #ifdef __cplusplus
 }
