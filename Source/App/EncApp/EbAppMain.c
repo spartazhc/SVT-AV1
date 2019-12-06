@@ -160,6 +160,25 @@ int32_t main(int32_t argc, char* argv[])
 
                     return_errors[instanceCount] = init_encoder(configs[instanceCount], appCallbacks[instanceCount], instanceCount);
                     return_error = (EbErrorType)(return_error | return_errors[instanceCount]);
+                    
+                    uint64_t    finishsTime = 0;
+                    uint64_t    finishuTime = 0;
+                    double      duration;
+                    FinishTime((uint64_t*)&finishsTime, (uint64_t*)&finishuTime);
+
+                    // total execution time, inc init time
+                    ComputeOverallElapsedTime(
+                        configs[instanceCount]->performance_context.lib_start_time[0],
+                        configs[instanceCount]->performance_context.lib_start_time[1],
+                        finishsTime,
+                        finishuTime,
+                        &duration);
+                    // printf("%d, %d\n%d, %d\n",
+                    //     configs[instanceCount]->performance_context.lib_start_time[0],
+                    //     configs[instanceCount]->performance_context.lib_start_time[1],
+                    //     finishsTime,
+                    //     finishuTime);
+                    printf("Encoder init time: %.4f\n", duration);
                 }
                 else
                     channelActive[instanceCount] = EB_FALSE;

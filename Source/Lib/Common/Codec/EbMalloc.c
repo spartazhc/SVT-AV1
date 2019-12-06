@@ -66,6 +66,7 @@ typedef struct MemoryEntry{
     void* ptr;
     EbPtrType type;
     size_t count;
+    uint16_t time;
     const char* file;
     uint32_t line;
 } MemoryEntry;
@@ -170,6 +171,7 @@ void eb_add_mem_entry(void* ptr,  EbPtrType type, size_t count, const char* file
     item.ptr = ptr;
     item.type = type;
     item.count = count;
+    item.time = 1;
     item.file = file;
     item.line = line;
     if (for_each_mem_entry(hash(ptr), add_mem_entry, &item))
@@ -214,6 +216,7 @@ void eb_remove_mem_entry(void* ptr, EbPtrType type)
 
 typedef struct MemSummary {
     uint64_t amount[EB_PTR_TYPE_TOTAL];
+    uint32_t times[EB_PTR_TYPE_TOTAL];
     uint32_t occupied;
 } MemSummary;
 
@@ -222,6 +225,7 @@ static EbBool count_mem_entry(MemoryEntry* e, void* param)
     MemSummary* sum = (MemSummary*)param;
     if (e->ptr) {
         sum->amount[e->type] += e->count;
+        sum->times[e->type] += 1;
         sum->occupied++;
     }
     return EB_FALSE;
@@ -265,6 +269,7 @@ static EbBool add_location(MemoryEntry* e, void* param) {
         return EB_TRUE;
     } else if (e->file == new_item->file && e->line == new_item->line) {
         e->count += new_item->count;
+        e->time += new_item->time;
         return EB_TRUE;
     }
     //to next position.
@@ -289,6 +294,15 @@ static int compare_count(const void* a,const void* b)
     return 1;
 }
 
+static int compare_time(const void* a,const void* b)
+{
+    const MemoryEntry* pa = (const MemoryEntry*)a;
+    const MemoryEntry* pb = (const MemoryEntry*)b;
+    if (pb->time < pa->time) return -1;
+    if (pb->time == pa->time) return 0;
+    return 1;
+}
+
 static void print_top_10_locations() {
     EbHandle m = get_malloc_mutex();
     EbPtrType type = EB_N_PTR;
@@ -303,14 +317,22 @@ static void print_top_10_locations() {
     for_each_hash_entry(g_mem_entry, 0, collect_mem, &type);
     qsort(g_profile_entry, MEM_ENTRY_SIZE, sizeof(MemoryEntry), compare_count);
 
-    printf("top 10 %s locations:\r\n", mem_type_name(type));
-    for (int i = 0; i < 10; i++) {
+    printf("top 10 %s size locations:\r\n", mem_type_name(type));
+    for (int i = 0; i < 15; i++) {
         double usage;
         char scale;
         MemoryEntry* e = g_profile_entry + i;
         get_memory_usage_and_scale(e->count, &usage, &scale);
         printf("(%.2lf %cB): %s:%d\r\n", usage, scale, e->file, e->line);
     }
+
+    qsort(g_profile_entry, MEM_ENTRY_SIZE, sizeof(MemoryEntry), compare_time);
+    printf("top 10 %s time locations:\r\n", mem_type_name(type));
+    for (int i = 0; i < 15; i++) {
+        MemoryEntry* e = g_profile_entry + i;
+        printf("(%d times): %s:%d\r\n", e->time, e->file, e->line);
+    }
+
     free(g_profile_entry);
     eb_release_mutex(m);
 }
@@ -332,13 +354,13 @@ void eb_print_memory_usage()
     for_each_mem_entry(0, count_mem_entry, &sum);
     printf("SVT Memory Usage:\r\n");
     get_memory_usage_and_scale(sum.amount[EB_N_PTR] + sum.amount[EB_C_PTR] + sum.amount[EB_A_PTR], &usage, &scale);
-    printf("    total allocated memory:       %.2lf %cB\r\n", usage, scale);
+    printf("    total allocated memory:       %.2lf %cB %d times\r\n", usage, scale, sum.times[EB_N_PTR] + sum.times[EB_C_PTR] + sum.times[EB_A_PTR]);
     get_memory_usage_and_scale(sum.amount[EB_N_PTR], &usage, &scale);
-    printf("        malloced memory:          %.2lf %cB\r\n", usage, scale);
+    printf("        malloced memory:          %.2lf %cB %d times\r\n", usage, scale, sum.times[EB_N_PTR]);
     get_memory_usage_and_scale(sum.amount[EB_C_PTR], &usage, &scale);
-    printf("        callocated memory:        %.2lf %cB\r\n", usage, scale);
+    printf("        callocated memory:        %.2lf %cB %d times\r\n", usage, scale, sum.times[EB_C_PTR]);
     get_memory_usage_and_scale(sum.amount[EB_A_PTR], &usage, &scale);
-    printf("        allocated aligned memory: %.2lf %cB\r\n", usage, scale);
+    printf("        allocated aligned memory: %.2lf %cB %d times\r\n", usage, scale, sum.times[EB_A_PTR]);
 
     printf("    mutex count: %d\r\n", (int)sum.amount[EB_MUTEX]);
     printf("    semaphore count: %d\r\n", (int)sum.amount[EB_SEMAPHORE]);
