@@ -33,6 +33,16 @@
 extern "C" {
 #endif
 
+#define MR_CHROMA_LEVEL_ON_M0                   1 // MR setting as is; independent chroma search for all layers
+#if MR_CHROMA_LEVEL_ON_M0                        
+#define OPT_MR_CHROMA_LEVEL_ON_M0               1 // MR setting optimized; independent chroma search for all layers but divided into fast-loop and full-loop
+#endif                                          
+                                                
+#define MR_COEFF_BASED_NSQ_CAND_PRUNING_M0      1 // MR setting as is; shut INTRA, ME, unipred3x3 and bipred3x3 if NSQ and parent sq has no coeff
+#if MR_COEFF_BASED_NSQ_CAND_PRUNING_M0                    
+#define OPT_MR_COEFF_BASED_NSQ_CAND_PRUNING_M0  1 // MR setting optimized; keep ME, shut unipred3x3 and bipred3x3, DC only and no filter INTRA if NSQ and parent sq has no coeff
+#endif    
+
 #define MULTI_PASS_PD                1 // Multi-Pass Partitioning Depth (Multi-Pass PD) performs multiple PD stages for the same SB towards 1 final Partitioning Structure. As we go from PDn to PDn + 1, the prediction accuracy of the MD feature(s) increases while the number of block(s) decreases
 
 #define HBD_CLEAN_UP                 1

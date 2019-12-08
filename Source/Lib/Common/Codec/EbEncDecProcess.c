@@ -1311,11 +1311,16 @@ EbErrorType signal_derivation_enc_dec_kernel_oq(
                 CHROMA_MODE_2 :
                 CHROMA_MODE_3;
     else
+#if MR_CHROMA_LEVEL_ON_M0
+        if (picture_control_set_ptr->enc_mode == ENC_M0)
+            context_ptr->chroma_level = CHROMA_MODE_0;
+#else
     if (MR_MODE)
         context_ptr->chroma_level = CHROMA_MODE_0;
     else
     if (picture_control_set_ptr->enc_mode == ENC_M0 && picture_control_set_ptr->temporal_layer_index == 0)
         context_ptr->chroma_level = CHROMA_MODE_0;
+#endif
     else
     if (picture_control_set_ptr->enc_mode <= ENC_M4)
         context_ptr->chroma_level = CHROMA_MODE_1;
@@ -1993,10 +1998,19 @@ EbErrorType signal_derivation_enc_dec_kernel_oq(
         context_ptr->coeff_based_nsq_cand_reduction = EB_FALSE;
     else if (context_ptr->pd_pass == PD_PASS_1)
         context_ptr->coeff_based_nsq_cand_reduction = EB_FALSE;
+#if MR_COEFF_BASED_NSQ_CAND_PRUNING_M0
+    else
+#if OPT_MR_COEFF_BASED_NSQ_CAND_PRUNING_M0
+        context_ptr->coeff_based_nsq_cand_reduction = EB_TRUE;
+#else
+        context_ptr->coeff_based_nsq_cand_reduction = EB_FALSE;
+#endif
+#else
     else if (MR_MODE)
         context_ptr->coeff_based_nsq_cand_reduction = EB_FALSE;
     else
         context_ptr->coeff_based_nsq_cand_reduction = EB_TRUE;
+#endif
 
     // Set rdoq_quantize_fp @ MD
     if (context_ptr->pd_pass == PD_PASS_0)
