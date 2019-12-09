@@ -302,7 +302,22 @@ extern "C" {
     //
     // For the bit to signal whether the single reference is a forward reference
     // frame or a backward reference frame.
-    extern int32_t eb_av1_get_pred_context_single_ref_p1(const MacroBlockD *xd);
+    inline int32_t eb_av1_get_pred_context_single_ref_p1(const MacroBlockD *xd) {
+        const uint8_t *const ref_counts = &xd->neighbors_ref_counts[0];
+
+        // Count of forward reference frames
+        const int32_t fwd_count = ref_counts[LAST_FRAME] + ref_counts[LAST2_FRAME] +
+            ref_counts[LAST3_FRAME] + ref_counts[GOLDEN_FRAME];
+        // Count of backward reference frames
+        const int32_t bwd_count = ref_counts[BWDREF_FRAME] + ref_counts[ALTREF2_FRAME] +
+            ref_counts[ALTREF_FRAME];
+
+        const int32_t pred_context =
+            (fwd_count == bwd_count) ? 1 : ((fwd_count < bwd_count) ? 0 : 2);
+
+        assert(pred_context >= 0 && pred_context < REF_CONTEXTS);
+        return pred_context;
+    }
 
     // For the bit to signal whether the single reference is ALTREF_FRAME or
     // non-ALTREF backward reference frame, knowing that it shall be either of
@@ -324,7 +339,196 @@ extern "C" {
     // For the bit to signal whether the single reference is ALTREF2_FRAME or
     // BWDREF_FRAME, knowing that it shall be either of these 2 choices.
     extern int32_t eb_av1_get_pred_context_single_ref_p6(const MacroBlockD *xd);
+#if RATE_ESTIMATION_UPDATE
+static INLINE int av1_get_skip_mode_context(const MacroBlockD *xd) {
+    const MbModeInfo *const above_mi = xd->above_mbmi;
+    const MbModeInfo *const left_mi = xd->left_mbmi;
+    const int above_skip_mode = above_mi ? above_mi->block_mi.skip_mode : 0;
+    const int left_skip_mode = left_mi ? left_mi->block_mi.skip_mode : 0;
+    return above_skip_mode + left_skip_mode;
+}
+static INLINE int av1_get_skip_context(const MacroBlockD *xd) {
+    const MbModeInfo *const above_mi = xd->above_mbmi;
+    const MbModeInfo *const left_mi = xd->left_mbmi;
+    const int above_skip = above_mi ? above_mi->block_mi.skip : 0;
+    const int left_skip = left_mi ? left_mi->block_mi.skip : 0;
+    return above_skip + left_skip;
+}
 
+// to add to ebCommonUtils.h
+static INLINE AomCdfProb *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
+    const MbModeInfo *above_mi, const MbModeInfo *left_mi)
+{
+    const PredictionMode above = above_mi ? above_mi->block_mi.mode : DC_PRED;
+    const PredictionMode left = left_mi ? left_mi->block_mi.mode : DC_PRED;
+    const int above_ctx = intra_mode_context[above];
+    const int left_ctx = intra_mode_context[left];
+    return tile_ctx->kf_y_cdf[above_ctx][left_ctx];
+}
+
+static INLINE int has_second_ref(const MbModeInfo *mbmi) {
+    return mbmi->block_mi.ref_frame[1] > INTRA_FRAME;
+}
+static INLINE int has_uni_comp_refs(const MbModeInfo *mbmi) {
+    return has_second_ref(mbmi) && (!((mbmi->block_mi.ref_frame[0] >= BWDREF_FRAME) ^
+        (mbmi->block_mi.ref_frame[1] >= BWDREF_FRAME)));
+}
+int av1_get_reference_mode_context_new(const MacroBlockD *xd);
+static INLINE AomCdfProb *av1_get_reference_mode_cdf(const MacroBlockD *xd) {
+    return xd->tile_ctx->comp_inter_cdf[av1_get_reference_mode_context_new(xd)];
+}
+int av1_get_comp_reference_type_context_new(const MacroBlockD *xd);
+// == Uni-directional contexts ==
+int eb_av1_get_pred_context_uni_comp_ref_p(const MacroBlockD *xd);
+
+int eb_av1_get_pred_context_uni_comp_ref_p1(const MacroBlockD *xd);
+
+int eb_av1_get_pred_context_uni_comp_ref_p2(const MacroBlockD *xd);
+static INLINE AomCdfProb *av1_get_comp_reference_type_cdf(
+    const MacroBlockD *xd) {
+    const int pred_context = av1_get_comp_reference_type_context_new(xd);
+    return xd->tile_ctx->comp_ref_type_cdf[pred_context];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_uni_comp_ref_p(xd);
+    return xd->tile_ctx->uni_comp_ref_cdf[pred_context][0];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p1(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_uni_comp_ref_p1(xd);
+    return xd->tile_ctx->uni_comp_ref_cdf[pred_context][1];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_uni_comp_ref_p2(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_uni_comp_ref_p2(xd);
+    return xd->tile_ctx->uni_comp_ref_cdf[pred_context][2];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p(const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_comp_ref_p(xd);
+    return xd->tile_ctx->comp_ref_cdf[pred_context][0];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p1(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_comp_ref_p1(xd);
+    return xd->tile_ctx->comp_ref_cdf[pred_context][1];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_comp_ref_p2(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_comp_ref_p2(xd);
+    return xd->tile_ctx->comp_ref_cdf[pred_context][2];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_comp_bwdref_p(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_comp_bwdref_p(xd);
+    return xd->tile_ctx->comp_bwdref_cdf[pred_context][0];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_comp_bwdref_p1(
+    const MacroBlockD *xd) {
+    const int pred_context = eb_av1_get_pred_context_comp_bwdref_p1(xd);
+    return xd->tile_ctx->comp_bwdref_cdf[pred_context][1];
+}
+// For the bit to signal whether the single reference is ALTREF_FRAME or
+// non-ALTREF backward reference frame, knowing that it shall be either of
+// these 2 choices.
+int32_t eb_av1_get_pred_context_single_ref_p2(const MacroBlockD *xd);
+
+// For the bit to signal whether the single reference is LAST3/GOLDEN or
+// LAST2/LAST, knowing that it shall be either of these 2 choices.
+int32_t eb_av1_get_pred_context_single_ref_p3(const MacroBlockD *xd);
+
+// For the bit to signal whether the single reference is LAST2_FRAME or
+// LAST_FRAME, knowing that it shall be either of these 2 choices.
+int32_t eb_av1_get_pred_context_single_ref_p4(const MacroBlockD *xd);
+
+// For the bit to signal whether the single reference is GOLDEN_FRAME or
+// LAST3_FRAME, knowing that it shall be either of these 2 choices.
+int32_t eb_av1_get_pred_context_single_ref_p5(const MacroBlockD *xd);
+
+// For the bit to signal whether the single reference is ALTREF2_FRAME or
+// BWDREF_FRAME, knowing that it shall be either of these 2 choices.
+int32_t eb_av1_get_pred_context_single_ref_p6(const MacroBlockD *xd);
+
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p1(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p1(xd)][0];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p2(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p2(xd)][1];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p3(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p3(xd)][2];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p4(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p4(xd)][3];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p5(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p5(xd)][4];
+}
+static INLINE AomCdfProb *av1_get_pred_cdf_single_ref_p6(
+    const MacroBlockD *xd) {
+    return xd->tile_ctx
+        ->single_ref_cdf[eb_av1_get_pred_context_single_ref_p6(xd)][5];
+}
+
+static INLINE int is_interintra_allowed_bsize(const BlockSize bsize) {
+    return (bsize >= BLOCK_8X8) && (bsize <= BLOCK_32X32);
+}
+
+static INLINE int is_interintra_allowed_mode(const PredictionMode mode) {
+    return (mode >= SINGLE_INTER_MODE_START) && (mode < SINGLE_INTER_MODE_END);
+}
+
+static INLINE int is_interintra_allowed_ref(const MvReferenceFrame rf[2]) {
+    return (rf[0] > INTRA_FRAME) && (rf[1] <= INTRA_FRAME);
+}
+
+static INLINE int is_interintra_allowed(const MbModeInfo *mbmi) {
+    return is_interintra_allowed_bsize(mbmi->block_mi.sb_type) &&
+        is_interintra_allowed_mode(mbmi->block_mi.mode) &&
+        is_interintra_allowed_ref(mbmi->block_mi.ref_frame);
+}
+
+int get_comp_group_idx_context_enc(const MacroBlockD *xd);
+
+int get_comp_index_context_enc(
+    PictureParentControlSet   *pcs_ptr,
+    int cur_frame_index,
+    int bck_frame_index,
+    int fwd_frame_index,
+    const MacroBlockD *xd);
+int32_t is_nontrans_global_motion_EC(
+    MvReferenceFrame             rf0,
+    MvReferenceFrame             rf1,
+    CodingUnit                  *cu_ptr,
+    BlockSize sb_type,
+    PictureParentControlSet   *pcs_ptr);
+
+uint8_t av1_drl_ctx(const CandidateMv *ref_mv_stack, int32_t ref_idx);
+
+int32_t have_newmv_in_inter_mode(PredictionMode mode);
+
+// Returns a context number for the given MB prediction signal
+static InterpFilter get_ref_filter_type(const BlockModeInfo *ref_mbmi,
+    const MacroBlockD *xd, int dir,
+    MvReferenceFrame ref_frame) {
+    (void)xd;
+
+    return ((ref_mbmi->ref_frame[0] == ref_frame ||
+        ref_mbmi->ref_frame[1] == ref_frame)
+        ? av1_extract_interp_filter(ref_mbmi->interp_filters, dir & 0x01)
+        : SWITCHABLE_FILTERS);
+}
+#endif
     extern EbErrorType write_frame_header_av1(
         Bitstream *bitstream_ptr,
         SequenceControlSet *scs_ptr,

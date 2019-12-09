@@ -59,7 +59,7 @@ static EB_AV1_INTER_PREDICTION_FUNC_PTR   av1_inter_prediction_function_table[2]
 void av1_set_ref_frame(MvReferenceFrame *rf,
     int8_t ref_frame_type);
 
-
+#if !RATE_ESTIMATION_UPDATE
 static INLINE int is_interintra_allowed_bsize(const BlockSize bsize) {
     return (bsize >= BLOCK_8X8) && (bsize <= BLOCK_32X32);
 }
@@ -71,9 +71,7 @@ static INLINE int is_interintra_allowed_mode(const PredictionMode mode) {
 static INLINE int is_interintra_allowed_ref(const MvReferenceFrame rf[2]) {
     return (rf[0] > INTRA_FRAME) && (rf[1] <= INTRA_FRAME);
 }
-
-
-
+#endif
 int svt_is_interintra_allowed(
     uint8_t enable_inter_intra,
     BlockSize sb_type,

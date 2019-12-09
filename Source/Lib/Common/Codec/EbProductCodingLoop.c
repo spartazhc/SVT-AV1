@@ -52,9 +52,11 @@ EbErrorType generate_md_stage_0_cand(
     PictureControlSet   *picture_control_set_ptr);
 
 #if II_COMP_FLAG
+#if !RATE_ESTIMATION_UPDATE
 static INLINE int is_interintra_allowed_bsize(const BlockSize bsize) {
     return (bsize >= BLOCK_8X8) && (bsize <= BLOCK_32X32);
 }
+#endif
 void precompute_intra_pred_for_inter_intra(
     PictureControlSet            *picture_control_set_ptr,
     ModeDecisionContext          *context_ptr);

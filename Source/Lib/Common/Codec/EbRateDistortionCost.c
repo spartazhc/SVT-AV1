@@ -848,7 +848,7 @@ static INLINE int32_t have_newmv_in_inter_mode(PredictionMode mode) {
 
 extern void av1_set_ref_frame(MvReferenceFrame *rf,
     int8_t ref_frame_type);
-
+#if !RATE_ESTIMATION_UPDATE
 static INLINE int has_second_ref(const MbModeInfo *mbmi) {
     return mbmi->block_mi.ref_frame[1] > INTRA_FRAME;
 }
@@ -857,7 +857,7 @@ static INLINE int has_uni_comp_refs(const MbModeInfo *mbmi) {
     return has_second_ref(mbmi) && (!((mbmi->block_mi.ref_frame[0] >= BWDREF_FRAME) ^
         (mbmi->block_mi.ref_frame[1] >= BWDREF_FRAME)));
 }
-
+#endif
 // This function encodes the reference frame
 uint64_t EstimateRefFramesNumBits(
     PictureControlSet                    *picture_control_set_ptr,
@@ -1224,7 +1224,6 @@ uint64_t EstimateRefFramesNumBits(
     return refRateBits;
 }
 //extern INLINE int16_t Av1ModeContextAnalyzer(const int16_t *const mode_context, const MvReferenceFrame *const rf);
-
 extern  int8_t av1_ref_frame_type(const MvReferenceFrame *const rf);
 uint16_t compound_mode_ctx_map_2[3][COMP_NEWMV_CTXS] = {
    { 0, 1, 1, 1, 1 },
@@ -1245,7 +1244,6 @@ static INLINE int16_t Av1ModeContextAnalyzer(
         newmv_ctx, COMP_NEWMV_CTXS - 1)];
     return comp_ctx;
 }
-
 int get_comp_index_context_enc(
     PictureParentControlSet   *pcs_ptr,
     int cur_frame_index,
