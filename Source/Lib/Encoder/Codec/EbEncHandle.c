@@ -2007,7 +2007,10 @@ void SetParamBasedOnInput(SequenceControlSet *sequence_control_set_ptr)
 
     //0: ON
     //1: OFF
-    sequence_control_set_ptr->cdf_mode = (uint8_t)(sequence_control_set_ptr->static_config.enc_mode <= ENC_M6) ? 0 : 1;
+    if (sequence_control_set_ptr->static_config.enable_cdf == AUTO_MODE)
+        sequence_control_set_ptr->cdf_mode = (uint8_t)(sequence_control_set_ptr->static_config.enc_mode <= ENC_M6) ? 0 : 1;
+    else
+        sequence_control_set_ptr->cdf_mode = sequence_control_set_ptr->static_config.enable_cdf;
 
     //0: NSQ absent
     //1: NSQ present
@@ -2117,6 +2120,15 @@ void CopyApiFromApp(
 
     // Global motion
     sequence_control_set_ptr->static_config.enable_global_motion = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_global_motion;
+
+    // atb mode
+    sequence_control_set_ptr->static_config.enable_atb                   = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_atb;
+    // cdf mode
+    sequence_control_set_ptr->static_config.enable_cdf                   = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_cdf;
+    // quantize fp
+    sequence_control_set_ptr->static_config.quant_fp                     = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->quant_fp;
+    // update cdf
+    sequence_control_set_ptr->static_config.update_cdf                   = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->update_cdf;
 
     // OBMC
     sequence_control_set_ptr->static_config.enable_obmc = ((EbSvtAv1EncConfiguration*)pComponentParameterStructure)->enable_obmc;
@@ -2673,6 +2685,10 @@ EbErrorType eb_svt_enc_init_parameter(
     config_ptr->disable_dlf_flag = EB_FALSE;
     config_ptr->enable_warped_motion = EB_TRUE;
     config_ptr->enable_global_motion = EB_TRUE;
+    config_ptr->enable_atb = AUTO_MODE;
+    config_ptr->enable_cdf = AUTO_MODE;
+    config_ptr->quant_fp = AUTO_MODE;
+    config_ptr->update_cdf = AUTO_MODE;
     config_ptr->enable_obmc = EB_TRUE;
     config_ptr->enable_rdoq = AUTO_MODE;
     config_ptr->enable_filter_intra = EB_TRUE;

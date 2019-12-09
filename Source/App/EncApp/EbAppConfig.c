@@ -65,6 +65,10 @@
 #define SEPERATE_FILDS_TOKEN            "-separate-fields"
 #define INTRA_REFRESH_TYPE_TOKEN        "-irefresh-type" // no Eval
 #define LOOP_FILTER_DISABLE_TOKEN       "-dlf"
+#define ATB_ENABLE_TOKEN                "-atb"
+#define CDF_ENABLE_TOKEN                "-cdf"
+#define QUANT_FP_TOKEN                  "-quantize-fp"
+#define UPDATE_CDF_TOKEN                "-updt-cdf"
 #define LOCAL_WARPED_ENABLE_TOKEN       "-local-warp"
 #define GLOBAL_MOTION_ENABLE_TOKEN      "-global-motion"
 #define OBMC_TOKEN                      "-obmc"
@@ -249,6 +253,10 @@ static void SetCfgFilmGrain                     (const char *value, EbConfig *cf
 static void SetDisableDlfFlag                   (const char *value, EbConfig *cfg) {cfg->disable_dlf_flag = (EbBool)strtoul(value, NULL, 0);};
 static void SetEnableLocalWarpedMotionFlag      (const char *value, EbConfig *cfg) {cfg->enable_warped_motion = (EbBool)strtoul(value, NULL, 0);};
 static void SetEnableGlobalMotionFlag           (const char *value, EbConfig *cfg) {cfg->enable_global_motion = (EbBool)strtoul(value, NULL, 0);};
+static void SetEnableAtbFlag                    (const char *value, EbConfig *cfg) {cfg->enable_atb = strtol(value, NULL, 0);};
+static void SetEnableCdfFlag                    (const char *value, EbConfig *cfg) {cfg->enable_cdf = strtol(value, NULL, 0);};
+static void SetQuantFpFlag                      (const char *value, EbConfig *cfg) {cfg->quant_fp = strtol(value, NULL, 0);};
+static void SetUpdateCdfFlag                    (const char *value, EbConfig *cfg) {cfg->update_cdf = strtol(value, NULL, 0);};
 static void SetEnableObmcFlag                   (const char *value, EbConfig *cfg) {cfg->enable_obmc = (EbBool)strtoul(value, NULL, 0);};
 static void SetEnableRdoqFlag                   (const char *value, EbConfig *cfg) {cfg->enable_rdoq = strtol(value, NULL, 0);};
 static void SetEnableFilterIntraFlag            (const char *value, EbConfig *cfg) {cfg->enable_filter_intra = (EbBool)strtoul(value, NULL, 0);};
@@ -445,10 +453,20 @@ config_entry_t config_entry[] = {
 
     // DLF
     { SINGLE_INPUT, LOOP_FILTER_DISABLE_TOKEN, "LoopFilterDisable", SetDisableDlfFlag },
+
+    { SINGLE_INPUT, QUANT_FP_TOKEN                , "QuantFp", SetQuantFpFlag              },
+    { SINGLE_INPUT, UPDATE_CDF_TOKEN              , "UpdateCdf", SetUpdateCdfFlag            },
+
     // LOCAL WARPED MOTION
     { SINGLE_INPUT, LOCAL_WARPED_ENABLE_TOKEN, "LocalWarpedMotion", SetEnableLocalWarpedMotionFlag },
     // GLOBAL MOTION
     { SINGLE_INPUT, GLOBAL_MOTION_ENABLE_TOKEN, "GlobalMotion", SetEnableGlobalMotionFlag },
+
+    // ATB
+    { SINGLE_INPUT, ATB_ENABLE_TOKEN, "Atb", SetEnableAtbFlag },
+    // CDF
+    { SINGLE_INPUT, CDF_ENABLE_TOKEN, "Cdf", SetEnableCdfFlag },
+
     // OBMC
     { SINGLE_INPUT, OBMC_TOKEN, "Obmc", SetEnableObmcFlag },
     // RDOQ
@@ -553,6 +571,10 @@ void eb_config_ctor(EbConfig *config_ptr)
     config_ptr->hierarchical_levels                   = 4;
     config_ptr->pred_structure                        = 2;
     config_ptr->enable_global_motion                 = EB_TRUE;
+    config_ptr->enable_atb                           = AUTO_MODE;
+    config_ptr->enable_cdf                           = AUTO_MODE;
+    config_ptr->quant_fp                             = AUTO_MODE;
+    config_ptr->update_cdf                           = AUTO_MODE;
     config_ptr->enable_obmc                          = EB_TRUE;
     config_ptr->enable_rdoq                          = AUTO_MODE;
     config_ptr->enable_filter_intra                  = EB_TRUE;
@@ -929,6 +951,26 @@ static EbErrorType VerifySettings(EbConfig *config, uint32_t channelNumber)
         fprintf(config->error_log_file, "Error instance %u: Invalid target_socket [-1 - 1], your input: %d\n", channelNumber + 1, config->target_socket);
         return_error = EB_ErrorBadParameter;
     }
+
+     if (config->enable_atb != 0 && config->enable_atb != 1 && config->enable_atb != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid atb flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->enable_atb);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->enable_cdf != 0 && config->enable_cdf != 1 && config->enable_cdf != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid cdf flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->enable_cdf);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->quant_fp != 0 && config->quant_fp != 1 && config->quant_fp != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid perform quant fp flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->quant_fp);
+         return_error = EB_ErrorBadParameter;
+     }
+
+     if (config->update_cdf != 0 && config->update_cdf != 1 && config->update_cdf != -1) {
+         fprintf(config->error_log_file, "Error instance %u: Invalid update_cdf flag [0/1 or -1 for auto], your input: %d\n", channelNumber + 1, config->update_cdf);
+         return_error = EB_ErrorBadParameter;
+     }
 
     // Local Warped Motion
     if (config->enable_warped_motion != 0 && config->enable_warped_motion != 1) {

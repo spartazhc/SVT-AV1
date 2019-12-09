@@ -232,6 +232,26 @@ typedef struct EbSvtAv1EncConfiguration
     * Default is 1. */
     EbBool                   enable_global_motion;
 
+    /* atb mode
+    *
+    * Default is -1. */
+    int                      enable_atb;
+
+    /* cdf mode
+    *
+    * Default is -1. */
+    int                      enable_cdf;
+
+    /* quantize fp
+    *
+    * Default is -1. */
+    int                   quant_fp;
+
+    /* update cdf
+    *
+    * Default is -1. */
+    int                   update_cdf;
+
     /* OBMC
     *
     * Default is 1. */
