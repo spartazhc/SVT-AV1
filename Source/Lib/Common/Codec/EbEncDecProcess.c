@@ -1807,10 +1807,43 @@ void* enc_dec_kernel(void *input_ptr)
                         else
                             picture_control_set_ptr->ec_ctx_array[sb_index] = picture_control_set_ptr->ec_ctx_array[sb_index - 1];
 #else
+#if RATE_ESTIMATION_UPDATE
+
+
+                        int wt_left = AVG_CDF_WEIGHT_LEFT;
+                        int wt_tr = AVG_CDF_WEIGHT_TOP_RIGHT;
+                        //if (tile_info->mi_col_end > (mi_col + mib_size))
+                        //    avg_cdf_symbols(xd->tile_ctx, x->row_ctx + sb_col_in_tile, wt_left,
+                        //        wt_tr);
+                        //else
+                        //    avg_cdf_symbols(xd->tile_ctx, x->row_ctx + sb_col_in_tile - 1,
+                        //        wt_left, wt_tr);
+                        if (sb_origin_x == 0 && sb_origin_y == 0)
+                            picture_control_set_ptr->ec_ctx_array[sb_index] = *picture_control_set_ptr->coeff_est_entropy_coder_ptr->fc;
+                        else if (sb_origin_x == 0)
+                            picture_control_set_ptr->ec_ctx_array[sb_index] = picture_control_set_ptr->ec_ctx_array[sb_index - picture_width_in_sb];
+                        else if (sb_origin_y == 0)
+                            picture_control_set_ptr->ec_ctx_array[sb_index] = picture_control_set_ptr->ec_ctx_array[sb_index - 1];
+                        else {
+                            picture_control_set_ptr->ec_ctx_array[sb_index] = picture_control_set_ptr->ec_ctx_array[sb_index - 1];
+                            avg_cdf_symbols(
+                                &picture_control_set_ptr->ec_ctx_array[sb_index], 
+                                &picture_control_set_ptr->ec_ctx_array[sb_index - picture_width_in_sb],
+                                wt_left, 
+                                wt_tr);
+                        }
+                        /*if (sb_origin_x == 0 && sb_origin_y == 0)
+                            picture_control_set_ptr->ec_ctx_array[sb_index] = *picture_control_set_ptr->coeff_est_entropy_coder_ptr->fc;
+                        else if (sb_origin_x == 0)
+                            picture_control_set_ptr->ec_ctx_array[sb_index] = picture_control_set_ptr->ec_ctx_array[sb_index - picture_width_in_sb];
+                        else
+                            picture_control_set_ptr->ec_ctx_array[sb_index] = picture_control_set_ptr->ec_ctx_array[sb_index - 1];*/
+#else
                         if (sb_origin_x == 0)
                             picture_control_set_ptr->ec_ctx_array[sb_index] = *picture_control_set_ptr->coeff_est_entropy_coder_ptr->fc;
                         else
                             picture_control_set_ptr->ec_ctx_array[sb_index] = picture_control_set_ptr->ec_ctx_array[sb_index - 1];
+#endif
 #endif
 #if RATE_ESTIMATION_UPDATE
                         av1_estimate_syntax_rate(

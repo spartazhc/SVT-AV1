@@ -1497,7 +1497,7 @@ void update_av1_mi_map(
 #endif
             //needed for CDEF
             miPtr[miX + miY * mi_stride].mbmi.block_mi.skip = cu_ptr->block_has_coeff ? EB_FALSE : EB_TRUE;
-#if RATE_ESTIMATION_UPDATE
+#if RATE_ESTIMATION_UPDATE // AMIR the other function
             miPtr[miX + miY * mi_stride].mbmi.block_mi.skip_mode = (int8_t)cu_ptr->skip_flag;
             miPtr[miX + miY * mi_stride].mbmi.block_mi.segment_id = cu_ptr->segment_id;
             miPtr[miX + miY * mi_stride].mbmi.block_mi.seg_id_predicted = cu_ptr->seg_id_predicted;

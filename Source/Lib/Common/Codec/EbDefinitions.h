@@ -32,8 +32,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define CABAC_SERIAL 1
-#define RATE_ESTIMATION_UPDATE       1
+#define CABAC_SERIAL 0
+#define RATE_ESTIMATION_UPDATE      1
 #define REU_OFF 0
 
 #define HBD_CLEAN_UP                 1
