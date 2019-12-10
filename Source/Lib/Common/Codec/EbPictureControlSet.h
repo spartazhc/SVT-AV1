@@ -13830,7 +13830,7 @@ extern "C" {
         NeighborArrayUnit                  *ep_luma_dc_sign_level_coeff_neighbor_array;
         NeighborArrayUnit                  *ep_cr_dc_sign_level_coeff_neighbor_array;
         NeighborArrayUnit                  *ep_cb_dc_sign_level_coeff_neighbor_array;
-#if RATE_ESTIMATION_UPDATE    
+#if RATE_ESTIMATION_UPDATE
         NeighborArrayUnit                  *ep_partition_context_neighbor_array;
 #endif
         // Entropy Coding Neighbor Arrays

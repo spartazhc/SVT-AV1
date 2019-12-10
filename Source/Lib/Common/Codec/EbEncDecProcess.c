@@ -1819,9 +1819,9 @@ void* enc_dec_kernel(void *input_ptr)
                         else {
                             picture_control_set_ptr->ec_ctx_array[sb_index] = picture_control_set_ptr->ec_ctx_array[sb_index - 1];
                             avg_cdf_symbols(
-                                &picture_control_set_ptr->ec_ctx_array[sb_index], 
+                                &picture_control_set_ptr->ec_ctx_array[sb_index],
                                 &picture_control_set_ptr->ec_ctx_array[sb_index - picture_width_in_sb],
-                                wt_left, 
+                                wt_left,
                                 wt_tr);
                         }
 #else

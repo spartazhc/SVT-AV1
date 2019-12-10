@@ -651,7 +651,7 @@ static AOM_INLINE void update_filter_type_cdf(
 }
 MvClassType av1_get_mv_class(int32_t z, int32_t *offset);
 static void update_mv_component_stats(
-    int comp, 
+    int comp,
     NmvComponent *mvcomp,
     MvSubpelPrecision precision) {
     assert(comp != 0);
@@ -805,7 +805,7 @@ static AOM_INLINE void sum_intra_stats(
     CodingUnit         *cu_ptr,
     const MbModeInfo    *above_mi,
     const MbModeInfo    *left_mi,
-    const int           intraonly, 
+    const int           intraonly,
     const int           mi_row,
     const int           mi_col) {
 
@@ -898,7 +898,7 @@ static AOM_INLINE void sum_intra_stats(
             update_cdf(cdf_v, CFL_IDX_V(idx), CFL_ALPHABET_SIZE);
         }
     }
-    if (av1_is_directional_mode(get_uv_mode(uv_mode)) && 
+    if (av1_is_directional_mode(get_uv_mode(uv_mode)) &&
         av1_use_angle_delta(bsize)) {
 #if CONFIG_ENTROPY_STATS
         ++counts->angle_delta[uv_mode - UV_V_PRED]
@@ -992,8 +992,8 @@ void update_stats(
 #endif
     if (!is_inter_block(&mbmi->block_mi)) {
         sum_intra_stats(
-            picture_control_set_ptr, 
-            cu_ptr, 
+            picture_control_set_ptr,
+            cu_ptr,
             xd->above_mbmi,
             xd->left_mbmi,
             frame_is_intra_only(picture_control_set_ptr->parent_pcs_ptr),

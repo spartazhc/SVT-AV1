@@ -3809,7 +3809,7 @@ EB_EXTERN void av1_encode_pass(
                     picture_control_set_ptr);
 #if RATE_ESTIMATION_UPDATE
                 if (picture_control_set_ptr->update_cdf) {
-                    // Update the partition Neighbor Array   
+                    // Update the partition Neighbor Array
                     PartitionContext         partition;
                     partition.above = partition_context_lookup[blk_geom->bsize].above;
                     partition.left  = partition_context_lookup[blk_geom->bsize].left;
