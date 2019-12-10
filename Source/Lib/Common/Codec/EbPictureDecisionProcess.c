@@ -1345,7 +1345,11 @@ EbErrorType signal_derivation_multi_processes_oq(
         // 1                                     ON
 
 #if SPEED_OPT
+#if MR_COEFF_BASED_SKIP_ATB_M0
+        if (picture_control_set_ptr->enc_mode == ENC_M0 || picture_control_set_ptr->sc_content_detected)
+#else
         if (MR_MODE || picture_control_set_ptr->sc_content_detected)
+#endif
 #else
         if (MR_MODE || picture_control_set_ptr->enc_mode == ENC_M0 || picture_control_set_ptr->sc_content_detected)
 #endif
