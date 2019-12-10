@@ -1824,12 +1824,6 @@ void* enc_dec_kernel(void *input_ptr)
                                 wt_left, 
                                 wt_tr);
                         }
-                        /*if (sb_origin_x == 0 && sb_origin_y == 0)
-                            picture_control_set_ptr->ec_ctx_array[sb_index] = *picture_control_set_ptr->coeff_est_entropy_coder_ptr->fc;
-                        else if (sb_origin_x == 0)
-                            picture_control_set_ptr->ec_ctx_array[sb_index] = picture_control_set_ptr->ec_ctx_array[sb_index - picture_width_in_sb];
-                        else
-                            picture_control_set_ptr->ec_ctx_array[sb_index] = picture_control_set_ptr->ec_ctx_array[sb_index - 1];*/
 #else
                         if (sb_origin_x == 0)
                             picture_control_set_ptr->ec_ctx_array[sb_index] = *picture_control_set_ptr->coeff_est_entropy_coder_ptr->fc;

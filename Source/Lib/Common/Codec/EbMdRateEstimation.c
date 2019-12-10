@@ -402,11 +402,10 @@ void av1_estimate_mv_rate(
     if (frm_hdr->allow_intrabc) {
         int32_t *dvcost[2] = { &md_rate_estimation_array->dv_cost[0][MV_MAX], &md_rate_estimation_array->dv_cost[1][MV_MAX] };
 #if RATE_ESTIMATION_UPDATE
-        eb_av1_build_nmv_cost_table(md_rate_estimation_array->dv_joint_cost, dvcost, &fc->ndvc,
+        eb_av1_build_nmv_cost_table(md_rate_estimation_array->dv_joint_cost, dvcost, &fc->ndvc, MV_SUBPEL_NONE);
 #else
-        eb_av1_build_nmv_cost_table(md_rate_estimation_array->dv_joint_cost, dvcost, &picture_control_set_ptr->coeff_est_entropy_coder_ptr->fc->ndvc,
+        eb_av1_build_nmv_cost_table(md_rate_estimation_array->dv_joint_cost, dvcost, &picture_control_set_ptr->coeff_est_entropy_coder_ptr->fc->ndvc, MV_SUBPEL_NONE);
 #endif
-        MV_SUBPEL_NONE);
     }
 }
 /**************************************************************************
@@ -630,14 +629,16 @@ static INLINE int32_t partition_cdf_length(BlockSize bsize) {
         return EXT_PARTITION_TYPES;
 }
 
-extern void av1_set_ref_frame(MvReferenceFrame *rf,
+extern void av1_set_ref_frame(
+    MvReferenceFrame *rf,
     int8_t ref_frame_type);
 
 typedef uint32_t InterpFilters;
 static INLINE InterpFilter av1_extract_interp_filter(InterpFilters filters,
     int32_t x_filter);
 
-static AOM_INLINE void update_filter_type_cdf(MacroBlockD *xd,
+static AOM_INLINE void update_filter_type_cdf(
+    MacroBlockD      *xd,
     const MbModeInfo *const mbmi) {
     int dir;
     for (dir = 0; dir < 2; ++dir) {
@@ -649,7 +650,9 @@ static AOM_INLINE void update_filter_type_cdf(MacroBlockD *xd,
     }
 }
 MvClassType av1_get_mv_class(int32_t z, int32_t *offset);
-static void update_mv_component_stats(int comp, NmvComponent *mvcomp,
+static void update_mv_component_stats(
+    int comp, 
+    NmvComponent *mvcomp,
     MvSubpelPrecision precision) {
     assert(comp != 0);
     int offset;
@@ -681,7 +684,6 @@ static void update_mv_component_stats(int comp, NmvComponent *mvcomp,
             mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d] : mvcomp->fp_cdf;
         update_cdf(fp_cdf, fr, MV_FP_SIZE);
     }
-
     // High precision bit
     if (precision > MV_SUBPEL_LOW_PRECISION) {
         AomCdfProb *hp_cdf =
@@ -707,10 +709,8 @@ void av1_update_mv_stats(const MV *mv, const MV *ref, NmvContext *mvctx,
 }
 
 static AOM_INLINE void update_inter_mode_stats(FRAME_CONTEXT *fc,
-    // FRAME_COUNTS *counts,
     PredictionMode mode,
     int16_t mode_context) {
-    // (void)counts;
 
     int16_t mode_ctx = mode_context & NEWMV_CTX_MASK;
     if (mode == NEWMV) {
@@ -749,9 +749,7 @@ static AOM_INLINE void update_inter_mode_stats(FRAME_CONTEXT *fc,
 
 static AOM_INLINE void update_palette_cdf(MacroBlockD *xd,
     const MbModeInfo *const mbmi,
-    CodingUnit            *cu_ptr
-    //    ,FRAME_COUNTS *counts
-) {
+    CodingUnit            *cu_ptr) {
     FRAME_CONTEXT *fc = xd->tile_ctx;
     const BlockGeom          *blk_geom = get_blk_geom_mds(cu_ptr->mds_idx);
     const BlockSize bsize = blk_geom->bsize;
@@ -776,7 +774,7 @@ static AOM_INLINE void update_palette_cdf(MacroBlockD *xd,
                 n - PALETTE_MIN_SIZE, PALETTE_SIZES);
         }
     }
-    uint32_t intra_chroma_mode = mbmi->block_mi.uv_mode;// cu_ptr->prediction_unit_array->intra_chroma_mode;
+    uint32_t intra_chroma_mode = mbmi->block_mi.uv_mode;
     const int num_planes = 3;
     const int uv_dc_pred =
         num_planes > 1 && intra_chroma_mode == UV_DC_PRED
@@ -804,18 +802,18 @@ static AOM_INLINE void update_palette_cdf(MacroBlockD *xd,
 
 static AOM_INLINE void sum_intra_stats(
     PictureControlSet  *picture_control_set_ptr,
-    CodingUnit            *cu_ptr,
-    const AV1_COMMON *const cm,
-    //  FRAME_COUNTS *counts, 
-    MacroBlockD *xd,
-    const MbModeInfo *const mbmi,
-    const MbModeInfo *above_mi,
-    const MbModeInfo *left_mi,
-    const int intraonly, const int mi_row,
-    const int mi_col) {
+    CodingUnit         *cu_ptr,
+    const MbModeInfo    *above_mi,
+    const MbModeInfo    *left_mi,
+    const int           intraonly, 
+    const int           mi_row,
+    const int           mi_col) {
+
+    const AV1_COMMON *const cm = picture_control_set_ptr->parent_pcs_ptr->av1_cm;
+    MacroBlockD *xd = cu_ptr->av1xd;
+    const MbModeInfo *const mbmi = &xd->mi[0]->mbmi;
     FRAME_CONTEXT *fc = xd->tile_ctx;
-    const PredictionMode y_mode = mbmi->block_mi.mode;// cu_ptr->pred_mode;
-    //(void)counts;
+    const PredictionMode y_mode = mbmi->block_mi.mode;
     const BlockGeom          *blk_geom = get_blk_geom_mds(cu_ptr->mds_idx);
     const BlockSize bsize = mbmi->block_mi.sb_type;
     if (intraonly) {
@@ -868,7 +866,7 @@ static AOM_INLINE void sum_intra_stats(
         subSamplingX, subSamplingY))
         return;
 
-    const UvPredictionMode uv_mode = mbmi->block_mi.uv_mode;// cu_ptr->prediction_unit_array->intra_chroma_mode;
+    const UvPredictionMode uv_mode = mbmi->block_mi.uv_mode;
     const int cfl_allowed = blk_geom->bwidth <= 32 && blk_geom->bheight <= 32;
 #if CONFIG_ENTROPY_STATS
     ++counts->uv_mode[cfl_allowed][y_mode][uv_mode];
@@ -876,8 +874,8 @@ static AOM_INLINE void sum_intra_stats(
     update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
         UV_INTRA_MODES - !cfl_allowed);
     if (uv_mode == UV_CFL_PRED) {
-        const int8_t joint_sign = mbmi->block_mi.cfl_alpha_signs;// cu_ptr->prediction_unit_array->cfl_alpha_signs;
-        const uint8_t idx = mbmi->block_mi.cfl_alpha_idx;//cu_ptr->prediction_unit_array->cfl_alpha_idx;
+        const int8_t joint_sign = mbmi->block_mi.cfl_alpha_signs;
+        const uint8_t idx = mbmi->block_mi.cfl_alpha_idx;
 
 #if CONFIG_ENTROPY_STATS
         ++counts->cfl_sign[joint_sign];
@@ -900,25 +898,25 @@ static AOM_INLINE void sum_intra_stats(
             update_cdf(cdf_v, CFL_IDX_V(idx), CFL_ALPHABET_SIZE);
         }
     }
-    if (av1_is_directional_mode(get_uv_mode(uv_mode)) && //cu_ptr->prediction_unit_array[0].is_directional_chroma_mode_flag &&
+    if (av1_is_directional_mode(get_uv_mode(uv_mode)) && 
         av1_use_angle_delta(bsize)) {
 #if CONFIG_ENTROPY_STATS
         ++counts->angle_delta[uv_mode - UV_V_PRED]
             [mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA];
 #endif
         update_cdf(fc->angle_delta_cdf[uv_mode - UV_V_PRED],
-            mbmi->block_mi.angle_delta[PLANE_TYPE_UV] /*cu_ptr->prediction_unit_array[0].angle_delta[PLANE_TYPE_UV]*/ + MAX_ANGLE_DELTA,
+            mbmi->block_mi.angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
             2 * MAX_ANGLE_DELTA + 1);
     }
     if (av1_allow_palette(picture_control_set_ptr->parent_pcs_ptr->frm_hdr.allow_screen_content_tools, bsize)) {
-        update_palette_cdf(xd, mbmi/*, counts*/, cu_ptr);
+        update_palette_cdf(xd, mbmi, cu_ptr);
     }
 }
 void update_stats(
     PictureControlSet  *picture_control_set_ptr,
     CodingUnit            *cu_ptr,
-    int mi_row,
-    int mi_col) {
+    int                 mi_row,
+    int                 mi_col) {
     const AV1_COMMON *const cm = picture_control_set_ptr->parent_pcs_ptr->av1_cm;
     MacroBlockD *xd = cu_ptr->av1xd;
     const MbModeInfo *const mbmi = &xd->mi[0]->mbmi;
@@ -993,8 +991,14 @@ void update_stats(
     }
 #endif
     if (!is_inter_block(&mbmi->block_mi)) {
-        sum_intra_stats(picture_control_set_ptr, cu_ptr, cm, /*td->counts,*/ xd, mbmi, xd->above_mbmi, xd->left_mbmi,
-            frame_is_intra_only(picture_control_set_ptr->parent_pcs_ptr), mi_row, mi_col);
+        sum_intra_stats(
+            picture_control_set_ptr, 
+            cu_ptr, 
+            xd->above_mbmi,
+            xd->left_mbmi,
+            frame_is_intra_only(picture_control_set_ptr->parent_pcs_ptr),
+            mi_row,
+            mi_col);
     }
     if (av1_allow_intrabc(cm)) {
         update_cdf(fc->intrabc_cdf, is_intrabc_block(&mbmi->block_mi), 2);
@@ -1004,9 +1008,7 @@ void update_stats(
     }
 
     if (frame_is_intra_only(picture_control_set_ptr->parent_pcs_ptr) || mbmi->block_mi.skip_mode) return;
-    //FRAME_COUNTS *const counts = td->counts;
     const int inter_block = is_inter_block(&mbmi->block_mi);
-
     if (!seg_ref_active) {
 #if CONFIG_ENTROPY_STATS
         counts->intra_inter[av1_get_intra_inter_context(xd)][inter_block]++;
@@ -1194,7 +1196,6 @@ void update_stats(
                     mbmi->block_mi.ref_frame[0],
                     mbmi->block_mi.ref_frame[1],
                     mbmi->block_mi.mode)
-                //motion_mode_allowed(xd->global_motion, xd, mbmi, cm->allow_warped_motion)
                 : SIMPLE_TRANSLATION;
             if (mbmi->block_mi.ref_frame[1] != INTRA_FRAME) {
                 if (motion_allowed == WARPED_CAUSAL) {
@@ -1268,7 +1269,7 @@ void update_stats(
 
     if (inter_block && picture_control_set_ptr->parent_pcs_ptr->av1_cm->interp_filter == SWITCHABLE &&
         mbmi->block_mi.motion_mode != WARPED_CAUSAL &&
-        !is_nontrans_global_motion_EC(mbmi->block_mi.ref_frame[0], mbmi->block_mi.ref_frame[1], cu_ptr, bsize, picture_control_set_ptr->parent_pcs_ptr)/*!is_nontrans_global_motion(xd, mbmi)*/) {
+        !is_nontrans_global_motion_EC(mbmi->block_mi.ref_frame[0], mbmi->block_mi.ref_frame[1], cu_ptr, bsize, picture_control_set_ptr->parent_pcs_ptr)) {
         update_filter_type_cdf(xd, mbmi);
     }
     if (inter_block &&
@@ -1286,7 +1287,7 @@ void update_stats(
                 INTER_COMPOUND_OFFSET(mode), INTER_COMPOUND_MODES);
         }
         else {
-            update_inter_mode_stats(fc, /*counts,*/ mode, mode_ctx);
+            update_inter_mode_stats(fc, mode, mode_ctx);
         }
 
         const int new_mv = mbmi->block_mi.mode == NEWMV || mbmi->block_mi.mode == NEW_NEWMV;
@@ -1326,9 +1327,7 @@ void update_stats(
             if (new_mv) {
                 IntMv ref_mv;
                 for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-                    // const int_mv ref_mv = av1_get_ref_mv(x, ref);
                     ref_mv = cu_ptr->predmv[ref];
-
                     MV mv;
                     mv.row = cu_ptr->prediction_unit_array[0].mv[ref].y;
                     mv.col = cu_ptr->prediction_unit_array[0].mv[ref].x;
@@ -1342,25 +1341,20 @@ void update_stats(
                 }
             }
             else if (mbmi->block_mi.mode == NEAREST_NEWMV || mbmi->block_mi.mode == NEAR_NEWMV) {
-                //const int ref = 1;
-               // const int_mv ref_mv = av1_get_ref_mv(x, ref);
                 IntMv ref_mv = cu_ptr->predmv[1];
-
                 MV mv;
                 mv.row = cu_ptr->prediction_unit_array[0].mv[1].y;
                 mv.col = cu_ptr->prediction_unit_array[0].mv[1].x;
-                av1_update_mv_stats(&mv,/*&mbmi->block_mi.mv[ref].as_mv,*/ &ref_mv.as_mv, &fc->nmvc,
+                av1_update_mv_stats(&mv,&ref_mv.as_mv, &fc->nmvc,
                     allow_hp);
             }
             else if (mbmi->block_mi.mode == NEW_NEARESTMV || mbmi->block_mi.mode == NEW_NEARMV) {
-                // const int ref = 0;
-                // const int_mv ref_mv = av1_get_ref_mv(x, ref);
                 IntMv ref_mv = cu_ptr->predmv[0];
 
                 MV mv;
                 mv.row = cu_ptr->prediction_unit_array[0].mv[0].y;
                 mv.col = cu_ptr->prediction_unit_array[0].mv[0].x;
-                av1_update_mv_stats(&mv, /*&mbmi->block_mi.mv[ref].as_mv,*/ &ref_mv.as_mv, &fc->nmvc,
+                av1_update_mv_stats(&mv, &ref_mv.as_mv, &fc->nmvc,
                     allow_hp);
             }
         }
@@ -1375,7 +1369,6 @@ void update_part_stats(
     const AV1_COMMON *const cm = picture_control_set_ptr->parent_pcs_ptr->av1_cm;
     MacroBlockD *xd = cu_ptr->av1xd;
     const MbModeInfo *const mbmi = &xd->mi[0]->mbmi;
-
     const BlockGeom          *blk_geom = get_blk_geom_mds(cu_ptr->mds_idx);
     BlockSize bsize = blk_geom->bsize;
     FRAME_CONTEXT *fc = xd->tile_ctx;
@@ -1384,7 +1377,7 @@ void update_part_stats(
     const int hbs = mi_size_wide[bsize] / 2;
     const int is_partition_root = bsize >= BLOCK_8X8;
     if (is_partition_root) {
-        const PartitionType partition = cu_ptr->part;// pc_tree->partitioning;
+        const PartitionType partition = cu_ptr->part;
         int ctx;
 
         NeighborArrayUnit    *partition_context_neighbor_array = picture_control_set_ptr->ep_partition_context_neighbor_array;
@@ -1422,37 +1415,5 @@ void update_part_stats(
             }
         }
     }
-    //if (!hasRows && !hasCols) {
-    //    assert(p == PARTITION_SPLIT);
-    //    return;
-    //}
-
-    //if (hasRows && hasCols) {
-    //    aom_write_symbol(
-    //        ec_writer,
-    //        p,
-    //        frameContext->partition_cdf[contextIndex],
-    //        partition_cdf_length(bsize));
-    //}
-    //else if (!hasRows && hasCols) {
-    //    AomCdfProb cdf[CDF_SIZE(2)];
-    //    partition_gather_vert_alike(cdf, frameContext->partition_cdf[contextIndex], bsize);
-    //    aom_write_symbol(
-    //        ec_writer,
-    //        p == PARTITION_SPLIT,
-    //        cdf,
-    //        2);
-    //}
-    //else {
-    //    AomCdfProb cdf[CDF_SIZE(2)];
-    //    partition_gather_horz_alike(cdf, frameContext->partition_cdf[contextIndex], bsize);
-    //    aom_write_symbol(
-    //        ec_writer,
-    //        p == PARTITION_SPLIT,
-    //        cdf,
-    //        2);
-    //}
-    printf("");
 }
-
 #endif

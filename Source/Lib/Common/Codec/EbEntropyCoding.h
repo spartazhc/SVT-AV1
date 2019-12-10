@@ -354,8 +354,6 @@ static INLINE int av1_get_skip_context(const MacroBlockD *xd) {
     const int left_skip = left_mi ? left_mi->block_mi.skip : 0;
     return above_skip + left_skip;
 }
-
-// to add to ebCommonUtils.h
 static INLINE AomCdfProb *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
     const MbModeInfo *above_mi, const MbModeInfo *left_mi)
 {
@@ -365,7 +363,6 @@ static INLINE AomCdfProb *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
     const int left_ctx = intra_mode_context[left];
     return tile_ctx->kf_y_cdf[above_ctx][left_ctx];
 }
-
 static INLINE int has_second_ref(const MbModeInfo *mbmi) {
     return mbmi->block_mi.ref_frame[1] > INTRA_FRAME;
 }
@@ -378,7 +375,7 @@ static INLINE AomCdfProb *av1_get_reference_mode_cdf(const MacroBlockD *xd) {
     return xd->tile_ctx->comp_inter_cdf[av1_get_reference_mode_context_new(xd)];
 }
 int av1_get_comp_reference_type_context_new(const MacroBlockD *xd);
-// == Uni-directional contexts ==
+
 int eb_av1_get_pred_context_uni_comp_ref_p(const MacroBlockD *xd);
 
 int eb_av1_get_pred_context_uni_comp_ref_p1(const MacroBlockD *xd);

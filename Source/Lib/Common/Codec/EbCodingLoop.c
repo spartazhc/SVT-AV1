@@ -3812,7 +3812,7 @@ EB_EXTERN void av1_encode_pass(
                     // Update the partition Neighbor Array   
                     PartitionContext         partition;
                     partition.above = partition_context_lookup[blk_geom->bsize].above;
-                    partition.left = partition_context_lookup[blk_geom->bsize].left;
+                    partition.left  = partition_context_lookup[blk_geom->bsize].left;
 
                     neighbor_array_unit_mode_write(
                         picture_control_set_ptr->ep_partition_context_neighbor_array,
