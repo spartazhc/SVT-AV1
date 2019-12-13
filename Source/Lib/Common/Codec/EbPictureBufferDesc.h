@@ -310,6 +310,12 @@ extern "C" {
         EbPictureBufferDesc *object_ptr,
         EbPtr  object_init_data_ptr);
 
+    extern EbErrorType eb_picture_buffer_desc_block_ctor(
+        EbPictureBufferDesc *object_ptr,
+        EbPtr  object_init_data_ptr,
+        EbByte eb_buffer_ptr,
+        uint32_t eb_buffer_offset);
+
     extern EbErrorType eb_recon_picture_buffer_desc_ctor(
         EbPictureBufferDesc *object_ptr,
         EbPtr  object_init_data_ptr);

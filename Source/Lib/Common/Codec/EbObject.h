@@ -87,6 +87,40 @@ typedef void(*EbDctor)(void* pobj);
         } \
     } while (0)
 
+#define EB_NEW_BLOCK_ARRAY(pobj, ctor, count, ...) \
+    do { \
+        EbErrorType err; \
+        size_t size = sizeof(*pobj[0]); \
+        EB_CALLOC(pobj[0], count, size); \
+        for (size_t i = 0; i < count; ++i) { \
+            pobj[i] = pobj[0] + i; \
+            err = ctor(pobj[i] EB_VA_ARGS(__VA_ARGS__)); \
+            if (err != EB_ErrorNone) { \
+                EB_DELETE_UNCHECKED(pobj[i]); \
+                return err; \
+            } \
+        } \
+    } while (0)
+
+#define EB_DELETE_NOFREE(pobj) \
+    do { \
+        if (pobj) { \
+            if ((pobj)->dctor) (pobj)->dctor(pobj); \
+        } \
+    } while (0)
+
+#define EB_DELETE_PTR_BLOCK_ARRAY(pa, count) \
+    do {\
+        uint32_t i; \
+        if (pa) { \
+            EB_DELETE(pa[0]); \
+            for (i = 1; i < count; i++) { \
+                EB_DELETE_NOFREE(pa[i]); \
+            } \
+            EB_FREE(pa); \
+        } \
+    } while (0)
+
 #undef EB_DELETE_UNCHECK //do not use this outside
 //#undef EB_VA_ARGS
 

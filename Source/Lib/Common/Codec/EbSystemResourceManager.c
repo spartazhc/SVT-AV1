@@ -184,7 +184,7 @@ static EbErrorType EbCircularBufferPushFront(
 void EbMuxingQueueDctor(EbPtr p)
 {
     EbMuxingQueue* obj = (EbMuxingQueue*)p;
-    EB_DELETE_PTR_ARRAY(obj->process_fifo_ptr_array, obj->process_total_count);
+    EB_DELETE_PTR_BLOCK_ARRAY(obj->process_fifo_ptr_array, obj->process_total_count);
     EB_DELETE(obj->object_queue);
     EB_DELETE(obj->process_queue);
     EB_DESTROY_MUTEX(obj->lockout_mutex);
@@ -199,7 +199,6 @@ static EbErrorType EbMuxingQueueCtor(
     uint32_t              process_total_count,
     EbFifo         ***processFifoPtrArrayPtr)
 {
-    uint32_t processIndex;
     EbErrorType     return_error = EB_ErrorNone;
 
     queue_ptr->dctor = EbMuxingQueueDctor;
@@ -221,16 +220,15 @@ static EbErrorType EbMuxingQueueCtor(
     // Construct the Process Fifos
     EB_ALLOC_PTR_ARRAY(queue_ptr->process_fifo_ptr_array, queue_ptr->process_total_count);
 
-    for (processIndex = 0; processIndex < queue_ptr->process_total_count; ++processIndex) {
-        EB_NEW(
-            queue_ptr->process_fifo_ptr_array[processIndex],
-            EbFifoCtor,
-            0,
-            object_total_count,
-            (EbObjectWrapper *)EB_NULL,
-            (EbObjectWrapper *)EB_NULL,
-            queue_ptr);
-    }
+    EB_NEW_BLOCK_ARRAY(
+        queue_ptr->process_fifo_ptr_array,
+        EbFifoCtor,
+        queue_ptr->process_total_count,
+        0,
+        object_total_count,
+        (EbObjectWrapper *)EB_NULL,
+        (EbObjectWrapper *)EB_NULL,
+        queue_ptr);
 
     *processFifoPtrArrayPtr = queue_ptr->process_fifo_ptr_array;
 
@@ -443,7 +441,7 @@ static void eb_system_resource_dctor(EbPtr p)
     EbSystemResource* obj = (EbSystemResource*)p;
     EB_DELETE(obj->full_queue);
     EB_DELETE(obj->empty_queue);
-    EB_DELETE_PTR_ARRAY(obj->wrapper_ptr_pool, obj->object_total_count);
+    EB_DELETE_PTR_BLOCK_ARRAY(obj->wrapper_ptr_pool, obj->object_total_count);
 }
 
 /*********************************************************************
@@ -498,10 +496,14 @@ EbErrorType eb_system_resource_ctor(
     EB_ALLOC_PTR_ARRAY(resource_ptr->wrapper_ptr_pool, resource_ptr->object_total_count);
 
     // Initialize each wrapper
-    for (wrapperIndex = 0; wrapperIndex < resource_ptr->object_total_count; ++wrapperIndex) {
-        EB_NEW(resource_ptr->wrapper_ptr_pool[wrapperIndex], eb_object_wrapper_ctor, resource_ptr,
-            object_creator, object_init_data_ptr, object_destroyer);
-    }
+    EB_NEW_BLOCK_ARRAY(
+        resource_ptr->wrapper_ptr_pool,
+        eb_object_wrapper_ctor,
+        resource_ptr->object_total_count,
+        resource_ptr,
+        object_creator,
+        object_init_data_ptr,
+        object_destroyer);
 
     // Initialize the Empty Queue
     EB_NEW(

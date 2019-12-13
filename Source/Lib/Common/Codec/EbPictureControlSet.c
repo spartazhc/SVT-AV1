@@ -68,15 +68,6 @@ static void me_sb_results_dctor(EbPtr p)
     MeLcuResults* obj = (MeLcuResults*)p;
 
     EB_FREE_ARRAY(obj->me_candidate);
-    if (obj->me_mv_array) {
-        EB_FREE_ARRAY(obj->me_mv_array[0]);
-    }
-    EB_FREE_ARRAY(obj->me_mv_array);
-    EB_FREE_ARRAY(obj->me_candidate_array);
-    EB_FREE_ARRAY(obj->total_me_candidate_index);
-
-    EB_FREE_ARRAY(obj->me_nsq_0);
-    EB_FREE_ARRAY(obj->me_nsq_1);
 }
 
 EbErrorType me_sb_results_ctor(
@@ -90,17 +81,18 @@ EbErrorType me_sb_results_ctor(
     objectPtr->dctor = me_sb_results_dctor;
     objectPtr->max_number_of_pus_per_lcu = maxNumberOfPusPerLcu;
 
-    EB_MALLOC_ARRAY(objectPtr->me_candidate, maxNumberOfPusPerLcu);
-    EB_MALLOC_ARRAY(objectPtr->me_mv_array, maxNumberOfPusPerLcu);
-#if ALIGN_MEM
-    objectPtr->meCandidateArray = (MeCandidate_t*)EB_aligned_malloc(sizeof(MeCandidate_t) * maxNumberOfPusPerLcu * maxNumberOfMeCandidatesPerPU, 64);
-#else
-    EB_MALLOC_ARRAY(objectPtr->me_candidate_array, maxNumberOfPusPerLcu * maxNumberOfMeCandidatesPerPU);
-#endif
-    EB_MALLOC_ARRAY(objectPtr->me_mv_array[0], maxNumberOfPusPerLcu * count);
-
+    EB_MALLOC(objectPtr->me_candidate, maxNumberOfPusPerLcu *
+            (sizeof(MeCandidate*) + sizeof(MvCandidate*) + sizeof(uint8_t) * 3 +
+             (sizeof(MeCandidate) + sizeof(MvCandidate)) * maxNumberOfMeCandidatesPerPU));
+    objectPtr->me_candidate[0] = (void *)(objectPtr->me_candidate + maxNumberOfPusPerLcu);
+    objectPtr->me_mv_array = (void *)(objectPtr->me_candidate[0] + maxNumberOfPusPerLcu * maxNumberOfMeCandidatesPerPU);
+    objectPtr->me_mv_array[0] = (void *)(objectPtr->me_mv_array + maxNumberOfPusPerLcu);
+    objectPtr->total_me_candidate_index = (void *)(objectPtr->me_mv_array[0] + maxNumberOfPusPerLcu * maxNumberOfMeCandidatesPerPU);
+    objectPtr->me_nsq_0 = (void *)(objectPtr->total_me_candidate_index + maxNumberOfPusPerLcu);
+    objectPtr->me_nsq_1 = (void *)(objectPtr->me_nsq_0 + maxNumberOfPusPerLcu);
     for (puIndex = 0; puIndex < maxNumberOfPusPerLcu; ++puIndex) {
-        objectPtr->me_candidate[puIndex] = &objectPtr->me_candidate_array[puIndex * maxNumberOfMeCandidatesPerPU];
+        objectPtr->me_candidate[puIndex] = objectPtr->me_candidate[0] + puIndex * maxNumberOfMeCandidatesPerPU;
+        objectPtr->me_mv_array[puIndex] = objectPtr->me_mv_array[0] + puIndex * count;
 
         objectPtr->me_candidate[puIndex][0].ref_idx_l0 = 0;
         objectPtr->me_candidate[puIndex][0].ref_idx_l1 = 0;
@@ -112,13 +104,7 @@ EbErrorType me_sb_results_ctor(
         objectPtr->me_candidate[puIndex][0].direction = 0;
         objectPtr->me_candidate[puIndex][1].direction = 1;
         objectPtr->me_candidate[puIndex][2].direction = 2;
-        objectPtr->me_mv_array[puIndex] = objectPtr->me_mv_array[0] + puIndex * count;
     }
-    EB_MALLOC_ARRAY(objectPtr->total_me_candidate_index, maxNumberOfPusPerLcu);
-
-    EB_MALLOC_ARRAY(objectPtr->me_nsq_0, maxNumberOfPusPerLcu);
-    EB_MALLOC_ARRAY(objectPtr->me_nsq_1, maxNumberOfPusPerLcu);
-
     //objectPtr->lcuDistortion = 0;
     return EB_ErrorNone;
 }
@@ -1091,7 +1077,7 @@ static void picture_parent_control_set_dctor(EbPtr p)
 
     EB_DELETE(obj->denoise_and_model);
 
-    EB_DELETE_PTR_ARRAY(obj->me_results, obj->sb_total_count);
+    EB_DELETE_PTR_BLOCK_ARRAY(obj->me_results, obj->sb_total_count);
     if (obj->is_chroma_downsampled_picture_ptr_owner)
         EB_DELETE(obj->chroma_downsampled_picture_ptr);
 
@@ -1243,14 +1229,13 @@ EbErrorType picture_parent_control_set_ctor(
 
     EB_ALLOC_PTR_ARRAY(object_ptr->me_results, object_ptr->sb_total_count);
 
-    for (sb_index = 0; sb_index < object_ptr->sb_total_count; ++sb_index) {
-        EB_NEW(
-            object_ptr->me_results[sb_index],
-            me_sb_results_ctor,
-            (initDataPtr->nsq_present) ? MAX_ME_PU_COUNT : SQUARE_PU_COUNT,
-            initDataPtr->mrp_mode,
-            object_ptr->max_number_of_candidates_per_block);
-    }
+    EB_NEW_BLOCK_ARRAY(
+        object_ptr->me_results,
+        me_sb_results_ctor,
+        object_ptr->sb_total_count,
+        (initDataPtr->nsq_present) ? MAX_ME_PU_COUNT : SQUARE_PU_COUNT,
+        initDataPtr->mrp_mode,
+        object_ptr->max_number_of_candidates_per_block);
 
     EB_MALLOC_ARRAY(object_ptr->rc_me_distortion, object_ptr->sb_total_count);
     // ME and OIS Distortion Histograms

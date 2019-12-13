@@ -318,7 +318,7 @@ static void print_top_10_locations() {
     qsort(g_profile_entry, MEM_ENTRY_SIZE, sizeof(MemoryEntry), compare_count);
 
     printf("top 10 %s size locations:\r\n", mem_type_name(type));
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 10; i++) {
         double usage;
         char scale;
         MemoryEntry* e = g_profile_entry + i;
@@ -327,8 +327,9 @@ static void print_top_10_locations() {
     }
 
     qsort(g_profile_entry, MEM_ENTRY_SIZE, sizeof(MemoryEntry), compare_time);
+    printf("-------------------------------------------\n");
     printf("top 10 %s time locations:\r\n", mem_type_name(type));
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 10; i++) {
         MemoryEntry* e = g_profile_entry + i;
         printf("(%d times): %s:%d\r\n", e->time, e->file, e->line);
     }

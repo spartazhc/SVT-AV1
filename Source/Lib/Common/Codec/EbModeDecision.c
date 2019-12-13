@@ -701,6 +701,7 @@ void ChooseBestAv1MvPred(
 static void mode_decision_candidate_buffer_dctor(EbPtr p)
 {
     ModeDecisionCandidateBuffer *obj = (ModeDecisionCandidateBuffer*)p;
+    EB_FREE_ALIGNED_ARRAY(obj->eb_buffer_ptr);
     EB_DELETE(obj->prediction_ptr);
     EB_DELETE(obj->prediction_ptr_temp);
     EB_DELETE(obj->cfl_temp_prediction_ptr);
@@ -713,6 +714,7 @@ static void mode_decision_candidate_buffer_dctor(EbPtr p)
 static void mode_decision_scratch_candidate_buffer_dctor(EbPtr p)
 {
     ModeDecisionCandidateBuffer *obj = (ModeDecisionCandidateBuffer*)p;
+    EB_FREE_ALIGNED_ARRAY(obj->eb_buffer_ptr);
     EB_DELETE(obj->prediction_ptr);
     EB_DELETE(obj->prediction_ptr_temp);
     EB_DELETE(obj->cfl_temp_prediction_ptr);
@@ -778,40 +780,63 @@ EbErrorType mode_decision_candidate_buffer_ctor(
     buffer_ptr->candidate_ptr = (ModeDecisionCandidate*)EB_NULL;
 
     // Video Buffers
+    uint32_t buffer_size = (MAX_SB_SIZE * MAX_SB_SIZE) + (MAX_SB_SIZE * MAX_SB_SIZE) / 2;
+    EB_CALLOC_ALIGNED_ARRAY(buffer_ptr->eb_buffer_ptr, buffer_size * (4 + 2 + 8));
+    uint32_t eb_buffer_offset = 0;
     EB_NEW(
         buffer_ptr->prediction_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&pictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&pictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size;
 
     EB_NEW(
         buffer_ptr->prediction_ptr_temp,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&pictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&pictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size;
 
     EB_NEW(
         buffer_ptr->cfl_temp_prediction_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&pictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&pictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size;
 
     EB_NEW(
         buffer_ptr->residual_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&doubleWidthPictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&doubleWidthPictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size * 2;
 
     EB_NEW(
         buffer_ptr->residual_quant_coeff_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&ThirtyTwoWidthPictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&ThirtyTwoWidthPictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size * 3;
 
     EB_NEW(
         buffer_ptr->recon_coeff_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&ThirtyTwoWidthPictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&ThirtyTwoWidthPictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size * 3;
 
     EB_NEW(
         buffer_ptr->recon_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&pictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&pictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
 
     //Distortion
     buffer_ptr->residual_luma_sad = 0;
@@ -875,40 +900,64 @@ EbErrorType mode_decision_scratch_candidate_buffer_ctor(
     buffer_ptr->candidate_ptr = (ModeDecisionCandidate*)EB_NULL;
 
     // Video Buffers
+    uint32_t buffer_size = (MAX_SB_SIZE * MAX_SB_SIZE) + (MAX_SB_SIZE * MAX_SB_SIZE) / 2;
+    EB_CALLOC_ALIGNED_ARRAY(buffer_ptr->eb_buffer_ptr, buffer_size * (4 + 2 + 8));
+    uint32_t eb_buffer_offset = 0;
     EB_NEW(
         buffer_ptr->prediction_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&pictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&pictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size;
 
     EB_NEW(
         buffer_ptr->prediction_ptr_temp,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&pictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&pictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size;
 
     EB_NEW(
         buffer_ptr->cfl_temp_prediction_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&pictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&pictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size;
 
     EB_NEW(
         buffer_ptr->residual_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&doubleWidthPictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&doubleWidthPictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size * 2;
 
     EB_NEW(
         buffer_ptr->residual_quant_coeff_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&ThirtyTwoWidthPictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&ThirtyTwoWidthPictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size * 3;
 
     EB_NEW(
         buffer_ptr->recon_coeff_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&ThirtyTwoWidthPictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&ThirtyTwoWidthPictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+    eb_buffer_offset += buffer_size * 3;
 
     EB_NEW(
         buffer_ptr->recon_ptr,
-        eb_picture_buffer_desc_ctor,
-        (EbPtr)&pictureBufferDescInitData);
+        eb_picture_buffer_desc_block_ctor,
+        (EbPtr)&pictureBufferDescInitData,
+        buffer_ptr->eb_buffer_ptr,
+        eb_buffer_offset);
+
     return EB_ErrorNone;
 }
 #endif

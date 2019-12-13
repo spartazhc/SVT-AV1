@@ -173,6 +173,10 @@ extern "C" {
 #if PAL_SUP
         PALETTE_BUFFER            palette_buffer;
         PaletteInfo              palette_cand_array[MAX_PAL_CAND];
+        //for memory free only
+        uint8_t                       *fast_color_idx_map;
+        uint8_t                       *pal_color_idx_map;
+        uint8_t                       *md_color_idx_map;        
 #endif
         // Entropy Coder
         EntropyCoder                 *coeff_est_entropy_coder_ptr;

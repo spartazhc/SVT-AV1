@@ -10,15 +10,14 @@ static void pa_reference_queue_entry_dctor(EbPtr p)
 {
     PaReferenceQueueEntry* obj = (PaReferenceQueueEntry*)p;
     EB_FREE(obj->list0.list);
-    EB_FREE(obj->list1.list);
 }
 
 EbErrorType pa_reference_queue_entry_ctor(
     PaReferenceQueueEntry   *entryPtr)
 {
     entryPtr->dctor = pa_reference_queue_entry_dctor;
-    EB_MALLOC(entryPtr->list0.list, sizeof(int32_t) * (1 << MAX_TEMPORAL_LAYERS));
-    EB_MALLOC(entryPtr->list1.list, sizeof(int32_t) * (1 << MAX_TEMPORAL_LAYERS));
+    EB_MALLOC(entryPtr->list0.list, 2 * sizeof(int32_t) * (1 << MAX_TEMPORAL_LAYERS));
+    entryPtr->list1.list =  entryPtr->list0.list + (1 << MAX_TEMPORAL_LAYERS);
 
     return EB_ErrorNone;
 }

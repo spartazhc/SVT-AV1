@@ -45,7 +45,6 @@ extern "C" {
         uint32_t          lcu_distortion;
         uint8_t          *total_me_candidate_index;
         MeCandidate     **me_candidate;
-        MeCandidate      *me_candidate_array;
         uint8_t          *me_nsq_0; // 2 Number of reference lists
         uint8_t          *me_nsq_1; // 2 Number of reference lists
 

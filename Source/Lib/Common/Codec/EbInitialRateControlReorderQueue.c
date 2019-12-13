@@ -20,7 +20,6 @@ static void hl_rate_control_histogram_entry_dctor(EbPtr p)
 {
     HlRateControlHistogramEntry* obj = (HlRateControlHistogramEntry*)p;
     EB_FREE_ARRAY(obj->me_distortion_histogram);
-    EB_FREE_ARRAY(obj->ois_distortion_histogram);
 }
 
 EbErrorType hl_rate_control_histogram_entry_ctor(
@@ -31,9 +30,8 @@ EbErrorType hl_rate_control_histogram_entry_ctor(
     entry_ptr->picture_number = picture_number;
 
     // ME and OIS Distortion Histograms
-    EB_MALLOC_ARRAY(entry_ptr->me_distortion_histogram, NUMBER_OF_SAD_INTERVALS);
-
-    EB_MALLOC_ARRAY(entry_ptr->ois_distortion_histogram, NUMBER_OF_INTRA_SAD_INTERVALS);
+    EB_MALLOC(entry_ptr->me_distortion_histogram, sizeof(uint16_t) * (NUMBER_OF_SAD_INTERVALS + NUMBER_OF_INTRA_SAD_INTERVALS));
+    entry_ptr->ois_distortion_histogram =  entry_ptr->me_distortion_histogram + NUMBER_OF_SAD_INTERVALS;
 
     return EB_ErrorNone;
 }

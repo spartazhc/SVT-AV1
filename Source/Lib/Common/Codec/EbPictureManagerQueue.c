@@ -17,7 +17,6 @@ void reference_queue_entry_dctor(EbPtr p)
 {
     ReferenceQueueEntry* obj = (ReferenceQueueEntry*)p;
     EB_FREE(obj->list0.list);
-    EB_FREE(obj->list1.list);
 }
 
 EbErrorType reference_queue_entry_ctor(
@@ -29,9 +28,8 @@ EbErrorType reference_queue_entry_ctor(
     entryPtr->dependent_count = 0;
     entryPtr->reference_available = EB_FALSE;
 
-    EB_MALLOC(entryPtr->list0.list, sizeof(int32_t) * (1 << MAX_TEMPORAL_LAYERS));
-
-    EB_MALLOC(entryPtr->list1.list, sizeof(int32_t) * (1 << MAX_TEMPORAL_LAYERS));
+    EB_MALLOC(entryPtr->list0.list, 2 * sizeof(int32_t) * (1 << MAX_TEMPORAL_LAYERS));
+    entryPtr->list1.list =  entryPtr->list0.list + sizeof(int32_t) * (1 << MAX_TEMPORAL_LAYERS);
 
     return EB_ErrorNone;
 }
