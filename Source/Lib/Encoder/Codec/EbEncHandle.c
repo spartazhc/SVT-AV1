@@ -32,6 +32,9 @@
 #include "EbEntropyCodingResults.h"
 #include "EbPredictionStructure.h"
 
+#include "EbTime.h"
+#include "time.h"
+
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -895,6 +898,27 @@ __attribute__((visibility("default")))
 #endif
 EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
 {
+    uint64_t    eb_startsTime = 0;
+    uint64_t    eb_startuTime = 0;
+    uint64_t    eb_control_startsTime = 0;
+    uint64_t    eb_control_startuTime = 0;
+    uint64_t    eb_context_startsTime = 0;
+    uint64_t    eb_context_startuTime = 0;
+    uint64_t    eb_buffer_startsTime = 0;
+    uint64_t    eb_buffer_startuTime = 0;
+    uint64_t    eb_resource_startsTime = 0;
+    uint64_t    eb_resource_startuTime = 0;
+    uint64_t    eb_thread_startsTime = 0;
+    uint64_t    eb_thread_startuTime = 0;
+    uint64_t    eb_finishsTime = 0;
+    uint64_t    eb_finishuTime = 0;
+    uint64_t    startsTime = 0;
+    uint64_t    startuTime = 0;
+    uint64_t    finishsTime = 0;
+    uint64_t    finishuTime = 0;
+    double      duration;
+    EbStartTime((uint64_t*)&eb_startsTime, (uint64_t*)&eb_startuTime);
+
     if(svt_enc_component == NULL)
         return EB_ErrorBadParameter;
     EbEncHandle *enc_handle_ptr = (EbEncHandle*)svt_enc_component->p_component_private;
@@ -922,6 +946,17 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
     eb_av1_init_me_luts();
     init_fn_ptr();
     av1_init_wedge_masks();
+
+    EbFinishTime((uint64_t*)&eb_finishsTime, (uint64_t*)&eb_finishuTime);
+    EbComputeOverallElapsedTime(
+    eb_startsTime,
+    eb_startuTime,
+    eb_finishsTime,
+    eb_finishuTime,
+    &duration);
+    printf("[preparation] total: %.4f\n", duration);
+
+    EbStartTime((uint64_t*)&eb_control_startsTime, (uint64_t*)&eb_control_startuTime);
     /************************************
     * Sequence Control Set
     ************************************/
@@ -1037,10 +1072,19 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
             &inputData,
             NULL);
     }
+    EbFinishTime((uint64_t*)&eb_finishsTime, (uint64_t*)&eb_finishuTime);
+    EbComputeOverallElapsedTime(
+    eb_control_startsTime,
+    eb_control_startuTime,
+    eb_finishsTime,
+    eb_finishuTime,
+    &duration);
+    printf("[control_set_total] total: %.4f\n", duration);
 
     /************************************
     * Picture Buffers
     ************************************/
+    EbStartTime((uint64_t*)&eb_buffer_startsTime, (uint64_t*)&eb_buffer_startuTime);
 
     // Allocate Resource Arrays
     EB_ALLOC_PTR_ARRAY(enc_handle_ptr->reference_picture_pool_ptr_array, enc_handle_ptr->encode_instance_total_count);
@@ -1173,10 +1217,19 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
             enc_handle_ptr->sequence_control_set_instance_array[instance_index]->encode_context_ptr->overlay_input_picture_pool_fifo_ptr = (enc_handle_ptr->overlay_input_picture_pool_producer_fifo_ptr_dbl_array[instance_index])[0];
         }
     }
+    EbFinishTime((uint64_t*)&eb_finishsTime, (uint64_t*)&eb_finishuTime);
+    EbComputeOverallElapsedTime(
+    eb_buffer_startsTime,
+    eb_buffer_startuTime,
+    eb_finishsTime,
+    eb_finishuTime,
+    &duration);
+    printf("[buffer_total] total: %.4f\n", duration);
 
     /************************************
     * System Resource Managers & Fifos
     ************************************/
+    EbStartTime((uint64_t*)&eb_resource_startsTime, (uint64_t*)&eb_resource_startuTime);
 
     // EbBufferHeaderType Input
     EB_NEW(
@@ -1490,6 +1543,14 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
             &entropyCodingResultInitData,
             NULL);
     }
+    EbFinishTime((uint64_t*)&eb_finishsTime, (uint64_t*)&eb_finishuTime);
+    EbComputeOverallElapsedTime(
+    eb_resource_startsTime,
+    eb_resource_startuTime,
+    eb_finishsTime,
+    eb_finishuTime,
+    &duration);
+    printf("[resource_total] total: %.4f\n", duration);
 
     /************************************
     * App Callbacks
@@ -1506,6 +1567,7 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
     /************************************
     * Contexts
     ************************************/
+   EbStartTime((uint64_t*)&eb_context_startsTime, (uint64_t*)&eb_context_startuTime);
 
     // Resource Coordination Context
     EB_NEW(
@@ -1520,6 +1582,7 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
         enc_handle_ptr->compute_segments_total_count_array,
         enc_handle_ptr->encode_instance_total_count);
 
+    EbStartTime((uint64_t*)&startsTime, (uint64_t*)&startuTime);
     // Picture Analysis Context
     EB_ALLOC_PTR_ARRAY(enc_handle_ptr->picture_analysis_context_ptr_array, enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->picture_analysis_process_init_count);
 
@@ -1544,6 +1607,14 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
             enc_handle_ptr->resource_coordination_results_consumer_fifo_ptr_array[processIndex],
             enc_handle_ptr->picture_analysis_results_producer_fifo_ptr_array[processIndex]);
    }
+    EbFinishTime((uint64_t*)&finishsTime, (uint64_t*)&finishuTime);
+    EbComputeOverallElapsedTime(
+    startsTime,
+    startuTime,
+    finishsTime,
+    finishuTime,
+    &duration);
+    printf("[picture_analysis_context_ctor] count: %d | total: %.4f | single %.4f\n", processIndex, duration, duration / processIndex);
 
     // Picture Decision Context
     {
@@ -1557,6 +1628,7 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
             enc_handle_ptr->picture_decision_results_producer_fifo_ptr_array[0]);
     }
 
+    EbStartTime((uint64_t*)&startsTime, (uint64_t*)&startuTime);
     // Motion Analysis Context
     EB_ALLOC_PTR_ARRAY(enc_handle_ptr->motion_estimation_context_ptr_array, enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->motion_estimation_process_init_count);
 
@@ -1571,6 +1643,14 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
             enc_handle_ptr->sequence_control_set_instance_array[instance_index]->sequence_control_set_ptr->nsq_present,
             enc_handle_ptr->sequence_control_set_instance_array[instance_index]->sequence_control_set_ptr->mrp_mode);
     }
+    EbFinishTime((uint64_t*)&finishsTime, (uint64_t*)&finishuTime);
+    EbComputeOverallElapsedTime(
+    startsTime,
+    startuTime,
+    finishsTime,
+    finishuTime,
+    &duration);
+    printf("[motion_estimation_context_ctor] count: %d | total: %.4f | single %.4f\n", processIndex, duration, duration / processIndex);
 
     // Initial Rate Control Context
     EB_NEW(
@@ -1604,6 +1684,8 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
         enc_handle_ptr->rate_control_tasks_consumer_fifo_ptr_array[0],
         enc_handle_ptr->rate_control_results_producer_fifo_ptr_array[0],
         enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->intra_period_length);
+
+    EbStartTime((uint64_t*)&startsTime, (uint64_t*)&startuTime);
     // Mode Decision Configuration Contexts
     {
         // Mode Decision Configuration Contexts
@@ -1619,6 +1701,14 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
                 ((enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->max_input_luma_height + BLOCK_SIZE_64 - 1) / BLOCK_SIZE_64));
         }
     }
+    EbFinishTime((uint64_t*)&finishsTime, (uint64_t*)&finishuTime);
+    EbComputeOverallElapsedTime(
+    startsTime,
+    startuTime,
+    finishsTime,
+    finishuTime,
+    &duration);
+    printf("[mode_decision_configuration_context_ctor] count: %d | total: %.4f | single %.4f\n", processIndex, duration, duration / processIndex);
 
     max_picture_width = 0;
     for (instance_index = 0; instance_index < enc_handle_ptr->encode_instance_total_count; ++instance_index) {
@@ -1626,6 +1716,7 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
             max_picture_width = enc_handle_ptr->sequence_control_set_instance_array[instance_index]->sequence_control_set_ptr->max_input_luma_width;
     }
 
+    EbStartTime((uint64_t*)&startsTime, (uint64_t*)&startuTime);
     // EncDec Contexts
     EB_ALLOC_PTR_ARRAY(enc_handle_ptr->enc_dec_context_ptr_array, enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->enc_dec_process_init_count);
 
@@ -1667,7 +1758,16 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
         );
 #endif
     }
+    EbFinishTime((uint64_t*)&finishsTime, (uint64_t*)&finishuTime);
+    EbComputeOverallElapsedTime(
+    startsTime,
+    startuTime,
+    finishsTime,
+    finishuTime,
+    &duration);
+    printf("[enc_dec_context_ctor] count: %d | total: %.4f | single %.4f\n", processIndex, duration, duration / processIndex);
 
+    EbStartTime((uint64_t*)&startsTime, (uint64_t*)&startuTime);
     // Dlf Contexts
     EB_ALLOC_PTR_ARRAY(enc_handle_ptr->dlf_context_ptr_array, enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->dlf_process_init_count);
 
@@ -1683,7 +1783,16 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
             enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->max_input_luma_height
         );
     }
+    EbFinishTime((uint64_t*)&finishsTime, (uint64_t*)&finishuTime);
+    EbComputeOverallElapsedTime(
+    startsTime,
+    startuTime,
+    finishsTime,
+    finishuTime,
+    &duration);
+    printf("[dlf_context_ctor] count: %d | total: %.4f | single %.4f\n", processIndex, duration, duration / processIndex);
 
+    EbStartTime((uint64_t*)&startsTime, (uint64_t*)&startuTime);
     //CDEF Contexts
     EB_ALLOC_PTR_ARRAY(enc_handle_ptr->cdef_context_ptr_array, enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->cdef_process_init_count);
 
@@ -1698,6 +1807,16 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
             enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->max_input_luma_height
         );
     }
+    EbFinishTime((uint64_t*)&finishsTime, (uint64_t*)&finishuTime);
+    EbComputeOverallElapsedTime(
+    startsTime,
+    startuTime,
+    finishsTime,
+    finishuTime,
+    &duration);
+    printf("[cdef_context_ctor] count: %d | total: %.4f | single %.4f\n", processIndex, duration, duration / processIndex);
+
+    EbStartTime((uint64_t*)&startsTime, (uint64_t*)&startuTime);
     //Rest Contexts
     EB_ALLOC_PTR_ARRAY(enc_handle_ptr->rest_context_ptr_array, enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->rest_process_init_count);
 
@@ -1715,7 +1834,16 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
             enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->max_input_luma_height
         );
     }
+    EbFinishTime((uint64_t*)&finishsTime, (uint64_t*)&finishuTime);
+    EbComputeOverallElapsedTime(
+    startsTime,
+    startuTime,
+    finishsTime,
+    finishuTime,
+    &duration);
+    printf("[rest_context_ctor] count: %d | total: %.4f | single %.4f\n", processIndex, duration, duration / processIndex);
 
+    EbStartTime((uint64_t*)&startsTime, (uint64_t*)&startuTime);
     // Entropy Coding Contexts
     EB_ALLOC_PTR_ARRAY(enc_handle_ptr->entropy_coding_context_ptr_array, enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->entropy_coding_process_init_count);
 
@@ -1728,6 +1856,14 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
             enc_handle_ptr->rate_control_tasks_producer_fifo_ptr_array[RateControlPortLookup(RATE_CONTROL_INPUT_PORT_ENTROPY_CODING, processIndex)],
             is16bit);
     }
+    EbFinishTime((uint64_t*)&finishsTime, (uint64_t*)&finishuTime);
+    EbComputeOverallElapsedTime(
+    startsTime,
+    startuTime,
+    finishsTime,
+    finishuTime,
+    &duration);
+    printf("[entropy_coding_context_ctor] count: %d | total: %.4f | single %.4f\n", processIndex, duration, duration / processIndex);
 
     // Packetization Context
     EB_NEW(
@@ -1739,9 +1875,20 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
         enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->enc_dec_process_init_count]
     );
 
+    EbFinishTime((uint64_t*)&eb_finishsTime, (uint64_t*)&eb_finishuTime);
+    EbComputeOverallElapsedTime(
+    eb_context_startsTime,
+    eb_context_startuTime,
+    eb_finishsTime,
+    eb_finishuTime,
+    &duration);
+    printf("[context_total] total: %.4f\n", duration);
+
     /************************************
     * Thread Handles
     ************************************/
+    EbStartTime((uint64_t*)&eb_thread_startsTime, (uint64_t*)&eb_thread_startuTime);
+
     EbSvtAv1EncConfiguration   *config_ptr = &enc_handle_ptr->sequence_control_set_instance_array[0]->sequence_control_set_ptr->static_config;
 
     EbSetThreadManagementParameters(config_ptr);
@@ -1810,11 +1957,28 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
     // Packetization
     EB_CREATE_THREAD(enc_handle_ptr->packetization_thread_handle, packetization_kernel, enc_handle_ptr->packetization_context_ptr);
 
+    EbFinishTime((uint64_t*)&eb_finishsTime, (uint64_t*)&eb_finishuTime);
+    EbComputeOverallElapsedTime(
+    eb_thread_startsTime,
+    eb_thread_startuTime,
+    eb_finishsTime,
+    eb_finishuTime,
+    &duration);
+    printf("[thread_total] total: %.4f\n", duration);
+
 #if DISPLAY_MEMORY
     EB_MEMORY();
 #endif
-    eb_print_memory_usage();
+    // eb_print_memory_usage();
 
+    EbFinishTime((uint64_t*)&eb_finishsTime, (uint64_t*)&eb_finishuTime);
+    EbComputeOverallElapsedTime(
+    eb_startsTime,
+    eb_startuTime,
+    eb_finishsTime,
+    eb_finishuTime,
+    &duration);
+    printf("[eb_init_encoder] total: %.4f\n", duration);
     return return_error;
 }
 
