@@ -228,6 +228,7 @@ void* rest_kernel(void *input_ptr)
         cdef_results_ptr = (CdefResults*)cdef_results_wrapper_ptr->object_ptr;
         picture_control_set_ptr = (PictureControlSet*)cdef_results_ptr->picture_control_set_wrapper_ptr->object_ptr;
         sequence_control_set_ptr = (SequenceControlSet*)picture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
+        eb_add_time_entry(EB_REST, EB_START, EB_TASK0, picture_control_set_ptr->picture_number, cdef_results_ptr->segment_index);
         frm_hdr = &picture_control_set_ptr->parent_pcs_ptr->frm_hdr;
         uint8_t lcuSizeLog2 = (uint8_t)Log2f(sequence_control_set_ptr->sb_size_pix);
         EbBool  is16bit = (EbBool)(sequence_control_set_ptr->static_config.encoder_bit_depth > EB_8BIT);
@@ -335,6 +336,7 @@ void* rest_kernel(void *input_ptr)
                 picture_demux_results_rtr->picture_number = picture_control_set_ptr->picture_number;
                 picture_demux_results_rtr->picture_type = EB_PIC_REFERENCE;
 
+                eb_add_time_entry(EB_REST, EB_FINISH, (EbTaskType)EB_PIC_REFERENCE, picture_control_set_ptr->picture_number, -1);
                 // Post Reference Picture
                 eb_post_full_object(picture_demux_results_wrapper_ptr);
             }
@@ -347,6 +349,7 @@ void* rest_kernel(void *input_ptr)
             rest_results_ptr->picture_control_set_wrapper_ptr = cdef_results_ptr->picture_control_set_wrapper_ptr;
             rest_results_ptr->completed_lcu_row_index_start = 0;
             rest_results_ptr->completed_lcu_row_count = ((sequence_control_set_ptr->seq_header.max_frame_height + sequence_control_set_ptr->sb_size_pix - 1) >> lcuSizeLog2);
+            eb_add_time_entry(EB_REST, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, -1);
             // Post Rest Results
             eb_post_full_object(rest_results_wrapper_ptr);
         }

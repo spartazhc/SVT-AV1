@@ -79,6 +79,21 @@ void EbComputeOverallElapsedTimeMs(uint64_t Startseconds, uint64_t Startuseconds
 #endif
 }
 
+void EbComputeOverallElapsedTimeRealMs(uint64_t Startseconds, uint64_t Startuseconds, uint64_t Finishseconds, uint64_t Finishuseconds, double *duration)
+{
+#ifdef _WIN32
+    //double  duration;
+    *duration = (double)(Finishseconds - Startseconds);
+    (void)(Startuseconds);
+    (void)(Finishuseconds);
+#else
+    long seconds, useconds;
+    seconds = Finishseconds - Startseconds;
+    useconds = Finishuseconds - Startuseconds;
+    *duration = (double)((seconds) * 1000 + useconds / 1000.0);
+#endif
+}
+
 void EbSleepMs(uint64_t milliSeconds)
 {
     if(milliSeconds) {

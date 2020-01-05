@@ -4166,7 +4166,6 @@ void* rate_control_kernel(void *input_ptr)
 
         rate_control_tasks_ptr = (RateControlTasks*)rate_control_tasks_wrapper_ptr->object_ptr;
         task_type = rate_control_tasks_ptr->task_type;
-
         // Modify these for different temporal layers later
         switch (task_type) {
         case RC_PICTURE_MANAGER_RESULT:
@@ -4174,6 +4173,7 @@ void* rate_control_kernel(void *input_ptr)
             picture_control_set_ptr = (PictureControlSet  *)rate_control_tasks_ptr->picture_control_set_wrapper_ptr->object_ptr;
             sequence_control_set_ptr = (SequenceControlSet *)picture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
             FrameHeader *frm_hdr = &picture_control_set_ptr->parent_pcs_ptr->frm_hdr;
+            eb_add_time_entry(EB_RC, EB_START, (EbTaskType)task_type, picture_control_set_ptr->picture_number, -1);
 
             if (picture_control_set_ptr->picture_number == 0) {
 
@@ -4445,7 +4445,7 @@ void* rate_control_kernel(void *input_ptr)
                 &rate_control_results_wrapper_ptr);
             rate_control_results_ptr = (RateControlResults*)rate_control_results_wrapper_ptr->object_ptr;
             rate_control_results_ptr->picture_control_set_wrapper_ptr = rate_control_tasks_ptr->picture_control_set_wrapper_ptr;
-
+            eb_add_time_entry(EB_RC, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, -1);
             // Post Full Rate Control Results
             eb_post_full_object(rate_control_results_wrapper_ptr);
 
@@ -4458,6 +4458,7 @@ void* rate_control_kernel(void *input_ptr)
 
             parentpicture_control_set_ptr = (PictureParentControlSet  *)rate_control_tasks_ptr->picture_control_set_wrapper_ptr->object_ptr;
             sequence_control_set_ptr = (SequenceControlSet *)parentpicture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
+            eb_add_time_entry(EB_RC, EB_START_NO_FINISH, (EbTaskType)task_type, parentpicture_control_set_ptr->picture_number, rate_control_tasks_ptr->segment_index);
 
             // Frame level RC
             if (sequence_control_set_ptr->intra_period_length == -1 || sequence_control_set_ptr->static_config.rate_control_mode == 0) {
@@ -4650,7 +4651,7 @@ void* rate_control_kernel(void *input_ptr)
             break;
 
         case RC_ENTROPY_CODING_ROW_FEEDBACK_RESULT:
-
+            eb_add_time_entry(EB_RC, EB_START_NO_FINISH, (EbTaskType)task_type, rate_control_tasks_ptr->picture_number, rate_control_tasks_ptr->segment_index);
             // Extract bits-per-lcu-row
 
             // Release Rate Control Tasks

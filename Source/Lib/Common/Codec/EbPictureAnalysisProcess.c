@@ -4287,7 +4287,7 @@ void* picture_analysis_kernel(void *input_ptr)
 
         inputResultsPtr = (ResourceCoordinationResults*)inputResultsWrapperPtr->object_ptr;
         picture_control_set_ptr = (PictureParentControlSet*)inputResultsPtr->picture_control_set_wrapper_ptr->object_ptr;
-
+        eb_add_time_entry(EB_PIC_ANALYSIS, EB_START, EB_TASK0, picture_control_set_ptr->picture_number, -1);
         // There is no need to do processing for overlay picture. Overlay and AltRef share the same results.
         if (!picture_control_set_ptr->is_overlay)
         {
@@ -4396,6 +4396,7 @@ void* picture_analysis_kernel(void *input_ptr)
         // Release the Input Results
         eb_release_object(inputResultsWrapperPtr);
 
+        eb_add_time_entry(EB_PIC_ANALYSIS, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, -1);
         // Post the Full Results Object
         eb_post_full_object(outputResultsWrapperPtr);
     }

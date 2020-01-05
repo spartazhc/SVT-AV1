@@ -660,7 +660,10 @@ void* motion_estimation_kernel(void *input_ptr)
         inputResultsPtr = (PictureDecisionResults*)inputResultsWrapperPtr->object_ptr;
         picture_control_set_ptr = (PictureParentControlSet*)inputResultsPtr->picture_control_set_wrapper_ptr->object_ptr;
         sequence_control_set_ptr = (SequenceControlSet*)picture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
-
+        if (inputResultsPtr->task_type == 1)
+            eb_add_time_entry(EB_ME, EB_START_NO_FINISH, (EbTaskType)inputResultsPtr->task_type, picture_control_set_ptr->picture_number, inputResultsPtr->segment_index);
+        else
+            eb_add_time_entry(EB_ME, EB_START, (EbTaskType)inputResultsPtr->task_type, picture_control_set_ptr->picture_number, inputResultsPtr->segment_index);
         paReferenceObject = (EbPaReferenceObject*)picture_control_set_ptr->pa_reference_picture_wrapper_ptr->object_ptr;
         // Set 1/4 and 1/16 ME input buffer(s); filtered or decimated
         quarter_picture_ptr = (sequence_control_set_ptr->down_sampling_method_me_search == ME_FILTERED_DOWNSAMPLED) ?
@@ -949,6 +952,7 @@ void* motion_estimation_kernel(void *input_ptr)
             // Release the Input Results
             eb_release_object(inputResultsWrapperPtr);
 
+            eb_add_time_entry(EB_ME, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, segment_index);
             // Post the Full Results Object
             eb_post_full_object(outputResultsWrapperPtr);
 

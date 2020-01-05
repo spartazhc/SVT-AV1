@@ -3114,7 +3114,7 @@ void* picture_decision_kernel(void *input_ptr)
         frm_hdr = &picture_control_set_ptr->frm_hdr;
         encode_context_ptr = (EncodeContext*)sequence_control_set_ptr->encode_context_ptr;
         loopCount++;
-
+        eb_add_time_entry(EB_PIC_DECISION, EB_START, EB_TASK0, picture_control_set_ptr->picture_number, -1);
         // Input Picture Analysis Results into the Picture Decision Reordering Queue
         // P.S. Since the prior Picture Analysis processes stage is multithreaded, inputs to the Picture Decision Process
         // can arrive out-of-display-order, so a the Picture Decision Reordering Queue is used to enforce processing of
@@ -3908,6 +3908,7 @@ void* picture_decision_kernel(void *input_ptr)
                                         outputResultsPtr->picture_control_set_wrapper_ptr = encode_context_ptr->pre_assignment_buffer[pictureIndex];
                                         outputResultsPtr->segment_index = seg_idx;
                                         outputResultsPtr->task_type = 1;
+                                        eb_add_time_entry(EB_PIC_DECISION, EB_FINISH, EB_TASK1, picture_control_set_ptr->picture_number, seg_idx);
                                         eb_post_full_object(outputResultsWrapperPtr);
                                     }
 
@@ -4088,6 +4089,8 @@ void* picture_decision_kernel(void *input_ptr)
 
                                     outputResultsPtr->segment_index = segment_index;
                                     outputResultsPtr->task_type = 0;
+
+                                    eb_add_time_entry(EB_PIC_DECISION, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, segment_index);
                                     // Post the Full Results Object
                                     eb_post_full_object(outputResultsWrapperPtr);
                                 }

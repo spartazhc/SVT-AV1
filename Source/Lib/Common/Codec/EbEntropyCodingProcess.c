@@ -422,6 +422,7 @@ void* entropy_coding_kernel(void *input_ptr)
         encDecResultsPtr = (EncDecResults*)encDecResultsWrapperPtr->object_ptr;
         picture_control_set_ptr = (PictureControlSet*)encDecResultsPtr->picture_control_set_wrapper_ptr->object_ptr;
         sequence_control_set_ptr = (SequenceControlSet*)picture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
+        eb_add_time_entry(EB_ENTROPY, EB_START, EB_TASK0, picture_control_set_ptr->picture_number, -1);
         // SB Constants
 
         sb_sz = (uint8_t)sequence_control_set_ptr->sb_size_pix;
@@ -494,7 +495,7 @@ void* entropy_coding_kernel(void *input_ptr)
 
                     rateControlTaskPtr->picture_control_set_wrapper_ptr = 0;
                     rateControlTaskPtr->segment_index = ~0u;
-
+                    eb_add_time_entry(EB_ENTROPY, EB_FINISH, (EbTaskType)RC_ENTROPY_CODING_ROW_FEEDBACK_RESULT, picture_control_set_ptr->picture_number, y_lcu_index);
                     // Post EncDec Results
                     eb_post_full_object(rateControlTaskWrapperPtr);
                 }
@@ -555,7 +556,7 @@ void* entropy_coding_kernel(void *input_ptr)
                             &entropyCodingResultsWrapperPtr);
                         entropyCodingResultsPtr = (EntropyCodingResults*)entropyCodingResultsWrapperPtr->object_ptr;
                         entropyCodingResultsPtr->picture_control_set_wrapper_ptr = encDecResultsPtr->picture_control_set_wrapper_ptr;
-
+                        eb_add_time_entry(EB_ENTROPY, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, -1);
                         // Post EntropyCoding Results
                         eb_post_full_object(entropyCodingResultsWrapperPtr);
                     } // End if(PictureCompleteFlag)
@@ -671,7 +672,8 @@ void* entropy_coding_kernel(void *input_ptr)
                      &entropyCodingResultsWrapperPtr);
                  entropyCodingResultsPtr = (EntropyCodingResults*)entropyCodingResultsWrapperPtr->object_ptr;
                  entropyCodingResultsPtr->picture_control_set_wrapper_ptr = encDecResultsPtr->picture_control_set_wrapper_ptr;
-
+                 // multi-tiles situation
+                 eb_add_time_entry(EB_ENTROPY, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, -1);
                  // Post EntropyCoding Results
                  eb_post_full_object(entropyCodingResultsWrapperPtr);
              }

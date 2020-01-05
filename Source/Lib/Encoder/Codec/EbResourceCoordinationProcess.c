@@ -977,6 +977,7 @@ void* resource_coordination_kernel(void *input_ptr)
                 // since overlay frame has the end of sequence set properly, set the end of sequence to true in the alt ref picture
                 if (((PictureParentControlSet       *)prevPictureControlSetWrapperPtr->object_ptr)->is_overlay && end_of_sequence_flag)
                     ((PictureParentControlSet       *)prevPictureControlSetWrapperPtr->object_ptr)->alt_ref_ppcs_ptr->end_of_sequence_flag = EB_TRUE;
+                eb_add_time_entry(EB_RESOURCE, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number - 1, -1);
                 // Post the finished Results Object
                 eb_post_full_object(outputWrapperPtr);
             }

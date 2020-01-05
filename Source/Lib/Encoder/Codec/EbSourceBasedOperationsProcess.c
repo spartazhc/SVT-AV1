@@ -99,6 +99,7 @@ void* source_based_operations_kernel(void *input_ptr)
         inputResultsPtr = (InitialRateControlResults*)inputResultsWrapperPtr->object_ptr;
         picture_control_set_ptr = (PictureParentControlSet*)inputResultsPtr->picture_control_set_wrapper_ptr->object_ptr;
         sequence_control_set_ptr = (SequenceControlSet*)picture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
+        eb_add_time_entry(EB_SBO, EB_START, EB_TASK0, picture_control_set_ptr->picture_number, -1);
         picture_control_set_ptr->dark_back_groundlight_fore_ground = EB_FALSE;
         context_ptr->sb_cmplx_contrast_count = 0;
         context_ptr->sb_high_contrast_count = 0;
@@ -147,7 +148,7 @@ void* source_based_operations_kernel(void *input_ptr)
 
         // Release the Input Results
         eb_release_object(inputResultsWrapperPtr);
-
+        eb_add_time_entry(EB_SBO, EB_FINISH, (EbTaskType)EB_PIC_INPUT, picture_control_set_ptr->picture_number, -1);
         // Post the Full Results Object
         eb_post_full_object(outputResultsWrapperPtr);
     }

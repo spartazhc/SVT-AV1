@@ -3047,6 +3047,7 @@ void* mode_decision_configuration_kernel(void *input_ptr)
         rateControlResultsPtr = (RateControlResults*)rateControlResultsWrapperPtr->object_ptr;
         picture_control_set_ptr = (PictureControlSet*)rateControlResultsPtr->picture_control_set_wrapper_ptr->object_ptr;
         sequence_control_set_ptr = (SequenceControlSet*)picture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
+        eb_add_time_entry(EB_MD_CONFIG, EB_START, EB_TASK0, picture_control_set_ptr->picture_number, -1);
         if (picture_control_set_ptr->parent_pcs_ptr->frm_hdr.use_ref_frame_mvs)
             av1_setup_motion_field(picture_control_set_ptr->parent_pcs_ptr->av1_cm, picture_control_set_ptr);
 
@@ -3404,6 +3405,7 @@ void* mode_decision_configuration_kernel(void *input_ptr)
         encDecTasksPtr->picture_control_set_wrapper_ptr = rateControlResultsPtr->picture_control_set_wrapper_ptr;
         encDecTasksPtr->input_type = ENCDEC_TASKS_MDC_INPUT;
 
+        eb_add_time_entry(EB_MD_CONFIG, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, -1);
         // Post the Full Results Object
         eb_post_full_object(encDecTasksWrapperPtr);
 

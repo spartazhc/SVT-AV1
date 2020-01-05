@@ -113,7 +113,7 @@ void* dlf_kernel(void *input_ptr)
         enc_dec_results_ptr         = (EncDecResults*)enc_dec_results_wrapper_ptr->object_ptr;
         picture_control_set_ptr     = (PictureControlSet*)enc_dec_results_ptr->picture_control_set_wrapper_ptr->object_ptr;
         sequence_control_set_ptr    = (SequenceControlSet*)picture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
-
+        eb_add_time_entry(EB_DLF, EB_START, EB_TASK0, picture_control_set_ptr->picture_number, -1);
         EbBool is16bit       = (EbBool)(sequence_control_set_ptr->static_config.encoder_bit_depth > EB_8BIT);
 
         EbBool dlfEnableFlag = (EbBool) picture_control_set_ptr->parent_pcs_ptr->loop_filter_mode;
@@ -233,6 +233,7 @@ void* dlf_kernel(void *input_ptr)
             dlf_results_ptr = (struct DlfResults*)dlf_results_wrapper_ptr->object_ptr;
             dlf_results_ptr->picture_control_set_wrapper_ptr = enc_dec_results_ptr->picture_control_set_wrapper_ptr;
             dlf_results_ptr->segment_index = segment_index;
+            eb_add_time_entry(EB_DLF, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, segment_index);
             // Post DLF Results
             eb_post_full_object(dlf_results_wrapper_ptr);
         }

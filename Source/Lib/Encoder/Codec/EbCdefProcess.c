@@ -444,7 +444,7 @@ void* cdef_kernel(void *input_ptr)
         dlf_results_ptr = (DlfResults*)dlf_results_wrapper_ptr->object_ptr;
         picture_control_set_ptr = (PictureControlSet*)dlf_results_ptr->picture_control_set_wrapper_ptr->object_ptr;
         sequence_control_set_ptr = (SequenceControlSet*)picture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
-
+        eb_add_time_entry(EB_CDEF, EB_START, EB_TASK0, picture_control_set_ptr->picture_number, dlf_results_ptr->segment_index);
         EbBool  is16bit = (EbBool)(sequence_control_set_ptr->static_config.encoder_bit_depth > EB_8BIT);
         Av1Common* cm = picture_control_set_ptr->parent_pcs_ptr->av1_cm;
         frm_hdr = &picture_control_set_ptr->parent_pcs_ptr->frm_hdr;
@@ -529,6 +529,7 @@ void* cdef_kernel(void *input_ptr)
             cdef_results_ptr = (struct CdefResults*)cdef_results_wrapper_ptr->object_ptr;
             cdef_results_ptr->picture_control_set_wrapper_ptr = dlf_results_ptr->picture_control_set_wrapper_ptr;
             cdef_results_ptr->segment_index = segment_index;
+            eb_add_time_entry(EB_CDEF, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, segment_index);
             // Post Cdef Results
             eb_post_full_object(cdef_results_wrapper_ptr);
         }

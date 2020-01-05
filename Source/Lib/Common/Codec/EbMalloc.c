@@ -5,10 +5,166 @@
 */
 #include <stdio.h>
 #include <inttypes.h>
+#include <pthread.h>
 
 
 #include "EbMalloc.h"
 #include "EbThreads.h"
+#include "EbTime.h"
+
+static EbHandle g_time_mutex;
+
+static void create_time_mutex()
+{
+    g_time_mutex = eb_create_mutex();
+}
+
+static pthread_once_t g_time_once = PTHREAD_ONCE_INIT;
+
+static EbHandle get_time_mutex()
+{
+    pthread_once(&g_time_once, create_time_mutex);
+    return g_time_mutex;
+}
+
+uint32_t hash_ti(uint64_t p)
+{
+#define MASK32 ((((uint64_t)1)<<32)-1)
+
+    uint64_t low32 = p & MASK32;
+    return (uint32_t)((p >> 32) + low32);
+}
+
+typedef struct TimeEntry{
+    uint64_t pic_num;
+    uint32_t seg_idx;
+    EbTimeType time_type;
+    EbTaskType task_type;
+    EbProcessType Ptype;
+    uint64_t sTime;
+    uint64_t uTime;
+} TimeEntry;
+
+//+1 to get a better hash result
+#define TIME_ENTRY_SIZE (4 * 1024 * 1024 + 1)
+
+TimeEntry g_time_entry[TIME_ENTRY_SIZE];
+
+#define TO_INDEX_TI(v) ((v) % TIME_ENTRY_SIZE)
+static EbBool g_add_time_entry_warning = EB_TRUE;
+
+typedef EbBool (*Predicate2)(TimeEntry* e, void* param);
+
+static EbBool for_each_hash_entry_ti(TimeEntry* bucket, uint32_t start, Predicate2 pred, void* param)
+{
+
+    uint32_t s = TO_INDEX_TI(start);
+    uint32_t i = s;
+
+    do {
+        TimeEntry* e = bucket + i;
+        if (pred(e, param)) {
+            return EB_TRUE;
+        }
+        i++;
+        i = TO_INDEX_TI(i);
+    } while (i != s);
+     return EB_FALSE;
+}
+
+static EbBool for_each_time_entry(uint32_t start, Predicate2 pred, void* param)
+{
+    EbBool ret;
+    EbHandle m = get_time_mutex();
+    eb_block_on_mutex(m);
+    ret = for_each_hash_entry_ti(g_time_entry, start, pred, param);
+    eb_release_mutex(m);
+    return ret;
+}
+
+static EbBool add_time_entry(TimeEntry* e, void* param)
+{
+    TimeEntry* new_item = (TimeEntry*)param;
+    if (!e->uTime) {
+        EB_MEMCPY(e, new_item, sizeof(TimeEntry));
+        return EB_TRUE;
+    }
+    return EB_FALSE;
+}
+
+
+void eb_add_time_entry(EbProcessType Ptype, EbTimeType TimeType, EbTaskType TaskType, uint64_t pic_num, int32_t seg_idx)
+{
+    TimeEntry item;
+    item.pic_num = pic_num;
+    item.seg_idx = seg_idx;
+    item.time_type = TimeType;
+    item.task_type = TaskType;
+    item.Ptype = Ptype;
+    EbStartTime(&item.sTime, &item.uTime);
+    if (for_each_time_entry(hash_ti(item.uTime), add_time_entry, &item))
+        return;
+    if (g_add_time_entry_warning) {
+        fprintf(stderr, "SVT: can't add time entry.\r\n");
+        fprintf(stderr, "SVT: You need to increase TIME_ENTRY_SIZE\r\n");
+        g_add_time_entry_warning = EB_FALSE;
+    }
+}
+
+static int compare_time(const void* a,const void* b)
+{
+    const TimeEntry* pa = (const TimeEntry*)a;
+    const TimeEntry* pb = (const TimeEntry*)b;
+    if (pa->sTime == 0 && pb->sTime != 0) return 1;
+    if (pa->sTime != 0 && pb->sTime == 0) return -1;
+    if (pa->sTime < pb->sTime) return -1;
+    else if (pa->sTime == pb->sTime) {
+        if (pa->uTime < pb->uTime) return -1;
+        else if (pa->uTime > pb->uTime) return 1;
+        else return 0;
+    }
+    return 1;
+}
+
+static const char *process_namelist[EB_PROCESS_TYPE_TOTAL] = {
+    "resource_coord", "pic_analysis", "pic_decision",
+    "motion_estimation", "initial_rc", "source_based_op",
+    "pic_manager", "rate_control", "mode_decision",
+    "enc_dec", "dlf", "cdef", "rest", "entropy_coding", "packetization"
+    };
+static const char* process_name(EbProcessType type)
+{
+    return process_namelist[type];
+}
+
+void eb_print_time_usage() {
+    EbHandle m = get_time_mutex();
+    eb_block_on_mutex(m);
+    FILE *fp = NULL, *fp_raw = NULL;
+    fp = fopen("/tmp/profile.csv", "w+");
+    fp_raw = fopen("/tmp/profile_raw.csv", "w+");
+    qsort(g_time_entry, TIME_ENTRY_SIZE, sizeof(TimeEntry), compare_time);
+    int i = 0;
+    double mtime;
+    while (g_time_entry[i].uTime) {
+        EbComputeOverallElapsedTimeRealMs(
+            g_time_entry[0].sTime,
+            g_time_entry[0].uTime,
+            g_time_entry[i].sTime,
+            g_time_entry[i].uTime,
+            &mtime);
+        fprintf(fp, "%s, Timetype=%d, TaskType=%d, pic_num=%zu, seg_idx=%d, TimeUseinMS=%.4f\n",
+            process_name(g_time_entry[i].Ptype), (int)g_time_entry[i].time_type, (int)g_time_entry[i].task_type,
+             g_time_entry[i].pic_num, g_time_entry[i].seg_idx, mtime);
+        fprintf(fp_raw, "%d, %d, %d, %zu, %d, %.4f\n",
+            (int)g_time_entry[i].Ptype, (int)g_time_entry[i].time_type, (int)g_time_entry[i].task_type,
+             g_time_entry[i].pic_num, g_time_entry[i].seg_idx, mtime);
+        ++i;
+    }
+    fclose(fp);
+    fclose(fp_raw);
+    eb_release_mutex(m);
+}
 
 #ifdef DEBUG_MEMORY_USAGE
 

@@ -272,6 +272,7 @@ void* packetization_kernel(void *input_ptr)
         picture_control_set_ptr = (PictureControlSet*)entropyCodingResultsPtr->picture_control_set_wrapper_ptr->object_ptr;
         sequence_control_set_ptr = (SequenceControlSet*)picture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
         encode_context_ptr = (EncodeContext*)sequence_control_set_ptr->encode_context_ptr;
+        eb_add_time_entry(EB_PACKET, EB_START, EB_TASK0, picture_control_set_ptr->picture_number, -1);
         frm_hdr = &picture_control_set_ptr->parent_pcs_ptr->frm_hdr;
         //****************************************************
         // Input Entropy Results into Reordering Queue
@@ -433,12 +434,16 @@ void* packetization_kernel(void *input_ptr)
             eb_release_mutex(encode_context_ptr->sc_buffer_mutex);
         }
 
+        eb_add_time_entry(EB_PACKET, EB_FINISH, (EbTaskType)RC_PACKETIZATION_FEEDBACK_RESULT, picture_control_set_ptr->picture_number, -1);
         // Post Rate Control Taks
         eb_post_full_object(rateControlTasksWrapperPtr);
         if (picture_control_set_ptr->parent_pcs_ptr->is_used_as_reference_flag == EB_TRUE &&
             picture_control_set_ptr->parent_pcs_ptr->reference_picture_wrapper_ptr)
+        {
+            eb_add_time_entry(EB_PACKET, EB_FINISH, (EbTaskType)EB_PIC_FEEDBACK, picture_control_set_ptr->picture_number, -1);
             // Post the Full Results Object
             eb_post_full_object(picture_manager_results_wrapper_ptr);
+        }
         else
             // Since feedback is not set to PM, life count of is reduced here instead of PM
             eb_release_object(picture_control_set_ptr->sequence_control_set_wrapper_ptr);
@@ -610,7 +615,7 @@ void* packetization_kernel(void *input_ptr)
             output_stream_ptr->p_app_private = queueEntryPtr->out_meta_data;
             if (queueEntryPtr->is_alt_ref)
                 output_stream_ptr->flags |= (uint32_t)EB_BUFFERFLAG_IS_ALT_REF;
-
+            eb_add_time_entry(EB_PACKET, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, -1);
             eb_post_full_object(output_stream_wrapper_ptr);
             queueEntryPtr->out_meta_data = (EbLinkedListNode *)EB_NULL;
 

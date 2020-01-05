@@ -24,6 +24,7 @@
 #include "EbUtility.h"
 #include "grainSynthesis.h"
 
+// #define SEG_TRACE
 
 #if MULTI_PASS_PD
 #define FC_SKIP_TX_SR_TH025 125 // Fast cost skip tx search threshold.
@@ -357,11 +358,13 @@ EbBool assign_enc_dec_segments(
 
     uint32_t selfAssigned = EB_FALSE;
 
-    //static FILE *trace = 0;
-    //
-    //if(trace == 0) {
-    //    trace = fopen("seg-trace.txt","w");
-    //}
+#ifdef SEG_TRACE
+    static FILE *trace = 0;
+
+    if(trace == 0) {
+       trace = fopen("/tmp/seg-trace.txt","w");
+    }
+#endif
 
     switch (taskPtr->input_type) {
     case ENCDEC_TASKS_MDC_INPUT:
@@ -375,10 +378,11 @@ EbBool assign_enc_dec_segments(
         ++segmentPtr->row_array[0].current_seg_index;
         continueProcessingFlag = EB_TRUE;
 
-        //fprintf(trace, "Start  Pic: %u Seg: %u\n",
-        //    (unsigned) ((PictureControlSet*) taskPtr->picture_control_set_wrapper_ptr->object_ptr)->picture_number,
-        //    *segmentInOutIndex);
-
+#ifdef SEG_TRACE
+        fprintf(trace, "Start  Pic: %u Seg: %u Type: %s\n",
+           (unsigned) ((PictureControlSet*) taskPtr->picture_control_set_wrapper_ptr->object_ptr)->picture_number,
+           *segmentInOutIndex, "MDC_INPUT");
+#endif
         break;
 
     case ENCDEC_TASKS_ENCDEC_INPUT:
@@ -392,10 +396,11 @@ EbBool assign_enc_dec_segments(
         ++segmentPtr->row_array[taskPtr->enc_dec_segment_row].current_seg_index;
         continueProcessingFlag = EB_TRUE;
 
-        //fprintf(trace, "Start  Pic: %u Seg: %u\n",
-        //    (unsigned) ((PictureControlSet*) taskPtr->picture_control_set_wrapper_ptr->object_ptr)->picture_number,
-        //    *segmentInOutIndex);
-
+#ifdef SEG_TRACE
+        fprintf(trace, "Start  Pic: %u Seg: %u Type: %s\n",
+           (unsigned) ((PictureControlSet*) taskPtr->picture_control_set_wrapper_ptr->object_ptr)->picture_number,
+           *segmentInOutIndex, "ENCDEC_INPUT");
+#endif
         break;
 
     case ENCDEC_TASKS_CONTINUE:
@@ -419,10 +424,11 @@ EbBool assign_enc_dec_segments(
                 ++segmentPtr->row_array[rowSegmentIndex].current_seg_index;
                 selfAssigned = EB_TRUE;
                 continueProcessingFlag = EB_TRUE;
-
-                //fprintf(trace, "Start  Pic: %u Seg: %u\n",
-                //    (unsigned) ((PictureControlSet*) taskPtr->picture_control_set_wrapper_ptr->object_ptr)->picture_number,
-                //    *segmentInOutIndex);
+#ifdef SEG_TRACE
+                fprintf(trace, "Start  Pic: %u Seg: %u Type: %s\n",
+                   (unsigned) ((PictureControlSet*) taskPtr->picture_control_set_wrapper_ptr->object_ptr)->picture_number,
+                   *segmentInOutIndex, "CONTINUE1");
+#endif
             }
 
             eb_release_mutex(segmentPtr->row_array[rowSegmentIndex].assignment_mutex);
@@ -444,15 +450,22 @@ EbBool assign_enc_dec_segments(
                     selfAssigned = EB_TRUE;
                     continueProcessingFlag = EB_TRUE;
 
-                    //fprintf(trace, "Start  Pic: %u Seg: %u\n",
-                    //    (unsigned) ((PictureControlSet*) taskPtr->picture_control_set_wrapper_ptr->object_ptr)->picture_number,
-                    //    *segmentInOutIndex);
+#ifdef SEG_TRACE
+                    fprintf(trace, "Start  Pic: %u Seg: %u Type: %s\n",
+                       (unsigned) ((PictureControlSet*) taskPtr->picture_control_set_wrapper_ptr->object_ptr)->picture_number,
+                       *segmentInOutIndex, "CONTINUE2");
+#endif
                 }
             }
             eb_release_mutex(segmentPtr->row_array[rowSegmentIndex + 1].assignment_mutex);
         }
 
         if (feedbackRowIndex > 0) {
+#ifdef SEG_TRACE
+            fprintf(trace, "Start  Pic: %u Seg: %u Type: %s\n",
+                (unsigned) ((PictureControlSet*) taskPtr->picture_control_set_wrapper_ptr->object_ptr)->picture_number,
+                *segmentInOutIndex, "FEEDBACK");
+#endif
             eb_get_empty_object(
                 srmFifoPtr,
                 &wrapper_ptr);
@@ -460,6 +473,7 @@ EbBool assign_enc_dec_segments(
             feedbackTaskPtr->input_type = ENCDEC_TASKS_ENCDEC_INPUT;
             feedbackTaskPtr->enc_dec_segment_row = feedbackRowIndex;
             feedbackTaskPtr->picture_control_set_wrapper_ptr = taskPtr->picture_control_set_wrapper_ptr;
+            eb_add_time_entry(EB_ENCDEC, EB_INSIDE, (EbTaskType)ENCDEC_TASKS_ENCDEC_INPUT, ((PictureControlSet*)taskPtr->picture_control_set_wrapper_ptr->object_ptr)->picture_number, feedbackRowIndex);
             eb_post_full_object(wrapper_ptr);
         }
 
@@ -2714,6 +2728,7 @@ void* enc_dec_kernel(void *input_ptr)
 
         encDecTasksPtr = (EncDecTasks*)encDecTasksWrapperPtr->object_ptr;
         picture_control_set_ptr = (PictureControlSet*)encDecTasksPtr->picture_control_set_wrapper_ptr->object_ptr;
+        eb_add_time_entry(EB_ENCDEC, EB_START, (EbTaskType)encDecTasksPtr->input_type, picture_control_set_ptr->picture_number, encDecTasksPtr->enc_dec_segment_row);
         sequence_control_set_ptr = (SequenceControlSet*)picture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
         segments_ptr = picture_control_set_ptr->enc_dec_segment_ctrl;
         lastLcuFlag = EB_FALSE;
@@ -3050,6 +3065,7 @@ void* enc_dec_kernel(void *input_ptr)
             //CHKN these are not needed for DLF
             encDecResultsPtr->completed_lcu_row_index_start = 0;
             encDecResultsPtr->completed_lcu_row_count = ((sequence_control_set_ptr->seq_header.max_frame_height + sequence_control_set_ptr->sb_size_pix - 1) >> lcuSizeLog2);
+            eb_add_time_entry(EB_ENCDEC, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, -1);
             // Post EncDec Results
             eb_post_full_object(encDecResultsWrapperPtr);
         }

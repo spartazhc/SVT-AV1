@@ -2391,6 +2391,43 @@ API.  This is a 32 bit pointer and is aligned on a 32 bit word boundary.
         DIST_CALC_TOTAL = 2
     } DistCalcType;
 
+    typedef enum EbTimeType
+    {
+        EB_START = 0,
+        EB_FINISH = 1,
+        EB_START_NO_FINISH = 2,
+        EB_INSIDE = 3
+    } EbTimeType;
+
+    typedef enum EbTaskType
+    {
+        EB_TASK0 = 0,
+        EB_TASK1 = 1,
+        EB_TASK2 = 2,
+        EB_TASK3 = 3
+    } EbTaskType;
+
+    // TimeEntryProcessType
+    typedef enum EbProcessType
+    {
+        EB_RESOURCE = 0,
+        EB_PIC_ANALYSIS = 1,
+        EB_PIC_DECISION = 2,
+        EB_ME = 3,
+        EB_INIT_RC = 4,
+        EB_SBO = 5,
+        EB_PIC_MANAGER = 6,
+        EB_RC = 7,
+        EB_MD_CONFIG = 8,
+        EB_ENCDEC = 9,
+        EB_DLF = 10,
+        EB_CDEF = 11,
+        EB_REST = 12,
+        EB_ENTROPY = 13,
+        EB_PACKET = 14,
+        EB_PROCESS_TYPE_TOTAL
+    } EbProcessType;
+
     typedef enum EbPtrType
     {
         EB_N_PTR = 0,     // malloc'd pointer

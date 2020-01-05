@@ -151,7 +151,7 @@ void* picture_manager_kernel(void *input_ptr)
             picture_control_set_ptr = (PictureParentControlSet*)inputPictureDemuxPtr->picture_control_set_wrapper_ptr->object_ptr;
             sequence_control_set_ptr = (SequenceControlSet*)picture_control_set_ptr->sequence_control_set_wrapper_ptr->object_ptr;
             encode_context_ptr = sequence_control_set_ptr->encode_context_ptr;
-
+            eb_add_time_entry(EB_PIC_MANAGER, EB_START, (EbTaskType)inputPictureDemuxPtr->picture_type, picture_control_set_ptr->picture_number, -1);
             //printf("\nPicture Manager Process @ %d \n ", picture_control_set_ptr->picture_number);
 
             queueEntryIndex = (int32_t)(picture_control_set_ptr->picture_number_alt - encode_context_ptr->picture_manager_reorder_queue[encode_context_ptr->picture_manager_reorder_queue_head_index]->picture_number);
@@ -443,7 +443,7 @@ void* picture_manager_kernel(void *input_ptr)
 
             sequence_control_set_ptr = (SequenceControlSet*)inputPictureDemuxPtr->sequence_control_set_wrapper_ptr->object_ptr;
             encode_context_ptr = sequence_control_set_ptr->encode_context_ptr;
-
+            eb_add_time_entry(EB_PIC_MANAGER, EB_START, (EbTaskType)inputPictureDemuxPtr->picture_type, inputPictureDemuxPtr->picture_number, -1);
             // Check if Reference Queue is full
             CHECK_REPORT_ERROR(
                 (encode_context_ptr->reference_picture_queue_head_index != encode_context_ptr->reference_picture_queue_tail_index),
@@ -481,6 +481,7 @@ void* picture_manager_kernel(void *input_ptr)
             sequence_control_set_ptr = (SequenceControlSet*)inputPictureDemuxPtr->sequence_control_set_wrapper_ptr->object_ptr;
             encode_context_ptr = sequence_control_set_ptr->encode_context_ptr;
             referenceQueueIndex = encode_context_ptr->reference_picture_queue_head_index;
+            eb_add_time_entry(EB_PIC_MANAGER, EB_START, (EbTaskType)inputPictureDemuxPtr->picture_type, inputPictureDemuxPtr->picture_number, -1);
             // Find the Reference in the Reference Queue
             do {
                 referenceEntryPtr = encode_context_ptr->reference_picture_queue[referenceQueueIndex];
@@ -890,7 +891,7 @@ void* picture_manager_kernel(void *input_ptr)
                         rateControlTasksPtr = (RateControlTasks*)outputWrapperPtr->object_ptr;
                         rateControlTasksPtr->picture_control_set_wrapper_ptr = ChildPictureControlSetWrapperPtr;
                         rateControlTasksPtr->task_type = RC_PICTURE_MANAGER_RESULT;
-
+                        eb_add_time_entry(EB_PIC_MANAGER, EB_FINISH, (EbTaskType)RC_PICTURE_MANAGER_RESULT, inputPictureDemuxPtr->picture_number, -1);
                         // Post the Full Results Object
                         eb_post_full_object(outputWrapperPtr);
 

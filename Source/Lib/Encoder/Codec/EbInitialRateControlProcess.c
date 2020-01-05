@@ -1125,6 +1125,7 @@ void* initial_rate_control_kernel(void *input_ptr)
 
         segment_index = inputResultsPtr->segment_index;
 
+        eb_add_time_entry(EB_INIT_RC, EB_START, EB_TASK0, picture_control_set_ptr->picture_number, segment_index);
         // Set the segment mask
         SEGMENT_COMPLETION_MASK_SET(picture_control_set_ptr->me_segments_completion_mask, segment_index);
 
@@ -1319,6 +1320,7 @@ void* initial_rate_control_kernel(void *input_ptr)
                             outputResultsPtr->picture_control_set_wrapper_ptr = picture_control_set_ptr->p_pcs_wrapper_ptr;
                         else
                         outputResultsPtr->picture_control_set_wrapper_ptr = queueEntryPtr->parent_pcs_wrapper_ptr;
+                        eb_add_time_entry(EB_INIT_RC, EB_FINISH, EB_TASK0, picture_control_set_ptr->picture_number, -1);
                         // Post the Full Results Object
                         eb_post_full_object(outputResultsWrapperPtr);
                     }

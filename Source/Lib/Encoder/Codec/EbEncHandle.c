@@ -2070,6 +2070,7 @@ __attribute__((visibility("default")))
 EB_API EbErrorType eb_deinit_handle(
     EbComponentType  *svt_enc_component)
 {
+    eb_print_time_usage();
     EbErrorType return_error = EB_ErrorNone;
 
     if (svt_enc_component) {
