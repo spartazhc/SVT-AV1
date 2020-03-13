@@ -22,6 +22,7 @@
 #include "EbEntropyCodingResults.h"
 #include "EbRateControlTasks.h"
 #include "EbCabacContextModel.h"
+#include "EbTime.h"
 #include "EbLog.h"
 #define AV1_MIN_TILE_SIZE_BYTES 1
 #if TILES_PARALLEL
@@ -683,6 +684,20 @@ void *entropy_coding_kernel(void *input_ptr) {
                         // Current tile ready
                         encode_slice_finish(
                             pcs_ptr->entropy_coding_info[tile_idx]->entropy_coder_ptr);
+
+                        // Calculate frame latency in milliseconds
+                        double   latency               = 0.0;
+                        uint64_t finish_time_seconds   = 0;
+                        uint64_t finish_time_u_seconds = 0;
+                        eb_finish_time(&finish_time_seconds, &finish_time_u_seconds);
+
+                        eb_compute_overall_elapsed_time_ms(pcs_ptr->parent_pcs_ptr->start_time_seconds,
+                                                            pcs_ptr->parent_pcs_ptr->start_time_u_seconds,
+                                                            finish_time_seconds,
+                                                            finish_time_u_seconds,
+                                                            &latency);
+
+                        SVT_LOG("POC: %d, tile_idx: %d, latency = %.2f\n", pcs_ptr->picture_number, tile_idx, latency);
 
                         eb_block_on_mutex(pcs_ptr->entropy_coding_pic_mutex);
                         pcs_ptr->entropy_coding_info[tile_idx]->entropy_coding_tile_done = EB_TRUE;
