@@ -184,7 +184,7 @@ int32_t main(int32_t argc, char *argv[]) {
                     EB_APP_MEMORY();
 #endif
                 }
-                fprintf(stderr, "Encoding          ");
+                fprintf(stderr, "Encoding          \n");
                 fflush(stdout);
 
                 while (exit_condition == APP_ExitConditionNone) {
