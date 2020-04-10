@@ -17,6 +17,7 @@
 #include "EbPictureDemuxResults.h"
 #include "EbLog.h"
 #include "EbSvtAv1ErrorCodes.h"
+#include "EbTime.h"
 #define DETAILED_FRAME_OUTPUT 0
 
 /**************************************
@@ -670,11 +671,15 @@ void *packetization_kernel(void *input_ptr) {
     uint16_t tile_cnt = 0;
 #endif
 
+    uint64_t    start_stime;
+    uint64_t    start_utime;
+
     for (;;) {
         // Get EntropyCoding Results
         EB_GET_FULL_OBJECT(context_ptr->entropy_coding_input_fifo_ptr,
                            &entropy_coding_results_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         entropy_coding_results_ptr =
             (EntropyCodingResults *)entropy_coding_results_wrapper_ptr->object_ptr;
         pcs_ptr = (PictureControlSet *)entropy_coding_results_ptr->pcs_wrapper_ptr->object_ptr;
@@ -840,10 +845,15 @@ void *packetization_kernel(void *input_ptr) {
 
         // Post Rate Control Taks
         eb_post_full_object(rate_control_tasks_wrapper_ptr);
+        // eb_add_time_entry(EB_PAK, EB_TASK0, (EbTaskType)RC_PACKETIZATION_FEEDBACK_RESULT, pcs_ptr->picture_number, -1, -1,
+        //                     start_stime, start_utime);
         if (pcs_ptr->parent_pcs_ptr->is_used_as_reference_flag == EB_TRUE &&
-            pcs_ptr->parent_pcs_ptr->reference_picture_wrapper_ptr)
+            pcs_ptr->parent_pcs_ptr->reference_picture_wrapper_ptr) {
             // Post the Full Results Object
             eb_post_full_object(picture_manager_results_wrapper_ptr);
+            eb_add_time_entry(EB_PAK, EB_TASK0, (EbTaskType)EB_PIC_FEEDBACK, pcs_ptr->picture_number, -1, -1,
+                            start_stime, start_utime);
+        }
         else
             // Since feedback is not set to PM, life count of is reduced here instead of PM
             eb_release_object(pcs_ptr->scs_wrapper_ptr);
@@ -872,6 +882,8 @@ void *packetization_kernel(void *input_ptr) {
             if (eos && queue_entry_ptr->has_show_existing)
                 clear_eos_flag(output_stream_ptr);
 
+            eb_add_time_entry(EB_PAK, EB_TASK0, EB_TASK0, queue_entry_ptr->picture_number, -1, -1,
+                            start_stime, start_utime);
             eb_post_full_object(output_stream_wrapper_ptr);
             if (queue_entry_ptr->has_show_existing) {
                 EbObjectWrapper *existed = pop_undisplayed_frame(encode_context_ptr);

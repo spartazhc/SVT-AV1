@@ -24,6 +24,7 @@
 #include "EbPsnr.h"
 #include "EbReferenceObject.h"
 #include "EbPictureControlSet.h"
+#include "EbTime.h"
 
 #define DEBUG_UPSCALING 0
 
@@ -482,10 +483,14 @@ void *rest_kernel(void *input_ptr) {
     PictureDemuxResults *picture_demux_results_rtr;
     // SB Loop variables
 
+    uint64_t    start_stime;
+    uint64_t    start_utime;
+
     for (;;) {
         // Get Cdef Results
         EB_GET_FULL_OBJECT(context_ptr->rest_input_fifo_ptr, &cdef_results_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         cdef_results_ptr = (CdefResults *)cdef_results_wrapper_ptr->object_ptr;
         pcs_ptr          = (PictureControlSet *)cdef_results_ptr->pcs_wrapper_ptr->object_ptr;
         scs_ptr          = (SequenceControlSet *)pcs_ptr->scs_wrapper_ptr->object_ptr;
@@ -590,6 +595,8 @@ void *rest_kernel(void *input_ptr) {
 
                 // Post Reference Picture
                 eb_post_full_object(picture_demux_results_wrapper_ptr);
+                // eb_add_time_entry(EB_REST, EB_TASK0, EB_TASK2, pcs_ptr->picture_number, -1, -1,
+                //             start_stime, start_utime);
             }
 #if TILES_PARALLEL
             //Jing: TODO
@@ -618,6 +625,8 @@ void *rest_kernel(void *input_ptr) {
                     rest_results_ptr->tile_index             = tile_idx;
                     // Post Rest Results
                     eb_post_full_object(rest_results_wrapper_ptr);
+                    eb_add_time_entry(EB_REST, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, -1, tile_idx,
+                                start_stime, start_utime);
                 }
             }
 #else

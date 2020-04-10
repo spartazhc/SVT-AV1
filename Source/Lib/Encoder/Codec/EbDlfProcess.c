@@ -24,6 +24,7 @@
 #include "EbSequenceControlSet.h"
 #include "EbPictureControlSet.h"
 #include "aom_dsp_rtcd.h"
+#include "EbTime.h"
 
 void eb_av1_loop_restoration_save_boundary_lines(const Yv12BufferConfig *frame, Av1Common *cm,
                                                  int32_t after_cdef);
@@ -105,11 +106,14 @@ void *dlf_kernel(void *input_ptr) {
     EbObjectWrapper *  dlf_results_wrapper_ptr;
     struct DlfResults *dlf_results_ptr;
 
+    uint64_t    start_stime;
+    uint64_t    start_utime;
     // SB Loop variables
     for (;;) {
         // Get EncDec Results
         EB_GET_FULL_OBJECT(context_ptr->dlf_input_fifo_ptr, &enc_dec_results_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         enc_dec_results_ptr = (EncDecResults *)enc_dec_results_wrapper_ptr->object_ptr;
         pcs_ptr             = (PictureControlSet *)enc_dec_results_ptr->pcs_wrapper_ptr->object_ptr;
         scs_ptr             = (SequenceControlSet *)pcs_ptr->scs_wrapper_ptr->object_ptr;
@@ -350,6 +354,9 @@ void *dlf_kernel(void *input_ptr) {
             dlf_results_ptr->pcs_wrapper_ptr = enc_dec_results_ptr->pcs_wrapper_ptr;
             dlf_results_ptr->segment_index   = segment_index;
             // Post DLF Results
+            if (segment_index == 0 || segment_index == 59)
+                eb_add_time_entry(EB_DLF, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, segment_index, -1,
+                                start_stime, start_utime);
             eb_post_full_object(dlf_results_wrapper_ptr);
         }
 

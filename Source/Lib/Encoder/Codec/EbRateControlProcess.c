@@ -29,6 +29,7 @@
 
 #include "EbSegmentation.h"
 #include "EbLog.h"
+#include "EbTime.h"
 
 static const uint32_t rate_percentage_layer_array[EB_MAX_TEMPORAL_LAYERS][EB_MAX_TEMPORAL_LAYERS] =
     {{100, 0, 0, 0, 0, 0},
@@ -5494,11 +5495,15 @@ void *rate_control_kernel(void *input_ptr) {
     RateControlTaskTypes task_type;
     RATE_CONTROL         rc;
 
+    uint64_t    start_stime;
+    uint64_t    start_utime;
+
     for (;;) {
         // Get RateControl Task
         EB_GET_FULL_OBJECT(context_ptr->rate_control_input_tasks_fifo_ptr,
                            &rate_control_tasks_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         rate_control_tasks_ptr = (RateControlTasks *)rate_control_tasks_wrapper_ptr->object_ptr;
         task_type              = rate_control_tasks_ptr->task_type;
 
@@ -5758,6 +5763,8 @@ void *rate_control_kernel(void *input_ptr) {
             rate_control_results_ptr->pcs_wrapper_ptr = rate_control_tasks_ptr->pcs_wrapper_ptr;
 
             // Post Full Rate Control Results
+            eb_add_time_entry(EB_RC , EB_TASK0, EB_TASK0, pcs_ptr->picture_number, -1, -1,
+                            start_stime, start_utime);
             eb_post_full_object(rate_control_results_wrapper_ptr);
 
             // Release Rate Control Tasks
@@ -6016,6 +6023,8 @@ void *rate_control_kernel(void *input_ptr) {
 #endif
             total_number_of_fb_frames++;
 
+            // eb_add_time_entry(EB_RC , EB_TASK1, EB_NOTASK, pcs_ptr->picture_number, -1, -1,
+            //                 start_stime, start_utime);
             // Release the SequenceControlSet
             eb_release_object(parentpicture_control_set_ptr->scs_wrapper_ptr);
             // Release the ParentPictureControlSet
@@ -6027,7 +6036,8 @@ void *rate_control_kernel(void *input_ptr) {
             break;
 
         case RC_ENTROPY_CODING_ROW_FEEDBACK_RESULT:
-
+            // eb_add_time_entry(EB_RC , EB_TASK2, EB_NOTASK, pcs_ptr->picture_number, -1, -1,
+            //                 start_stime, start_utime);
             // Extract bits-per-sb-row
 
             // Release Rate Control Tasks

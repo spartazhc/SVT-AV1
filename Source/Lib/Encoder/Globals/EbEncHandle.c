@@ -1736,6 +1736,7 @@ EB_API EbErrorType eb_init_encoder(EbComponentType *svt_enc_component)
 __attribute__((visibility("default")))
 #endif
 EB_API EbErrorType eb_deinit_encoder(EbComponentType *svt_enc_component){
+    eb_print_time_usage();
     if(svt_enc_component == NULL)
         return EB_ErrorBadParameter;
 
@@ -2029,7 +2030,7 @@ void copy_api_from_app(
     scs_ptr->max_input_luma_height = config_struct->source_height;
     scs_ptr->frame_rate = ((EbSvtAv1EncConfiguration*)config_struct)->frame_rate;
     // SB Definitions
-    scs_ptr->static_config.pred_structure = 2; // Hardcoded(Cleanup)
+    scs_ptr->static_config.pred_structure = config_struct->pred_structure;
     scs_ptr->static_config.enable_qp_scaling_flag = 1;
     scs_ptr->max_blk_size = (uint8_t)64;
     scs_ptr->min_blk_size = (uint8_t)8;
@@ -2362,10 +2363,10 @@ static EbErrorType verify_settings(
         return_error = EB_ErrorBadParameter;
     }
 
-    if (config->pred_structure != 2) {
-        SVT_LOG("Error instance %u: Pred Structure must be [2]\n", channel_number + 1);
-        return_error = EB_ErrorBadParameter;
-    }
+    // if (config->pred_structure != 2) {
+    //     SVT_LOG("Error instance %u: Pred Structure must be [2]\n", channel_number + 1);
+    //     return_error = EB_ErrorBadParameter;
+    // }
     if (scs_ptr->max_input_luma_width % 8 && scs_ptr->static_config.compressed_ten_bit_format == 1) {
         SVT_LOG("Error Instance %u: Only multiple of 8 width is supported for compressed 10-bit inputs \n", channel_number + 1);
         return_error = EB_ErrorBadParameter;

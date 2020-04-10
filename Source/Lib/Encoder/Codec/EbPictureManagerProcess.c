@@ -18,6 +18,7 @@
 #include "EbRateControlTasks.h"
 #include "EbSvtAv1ErrorCodes.h"
 #include "EbEntropyCoding.h"
+#include "EbTime.h"
 
 /***************************************
  * Context
@@ -191,10 +192,14 @@ void *picture_manager_kernel(void *input_ptr) {
     // Debug
     uint32_t loop_count = 0;
 
+    uint64_t    start_stime;
+    uint64_t    start_utime;
+
     for (;;) {
         // Get Input Full Object
         EB_GET_FULL_OBJECT(context_ptr->picture_input_fifo_ptr, &input_picture_demux_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         input_picture_demux_ptr =
             (PictureDemuxResults *)input_picture_demux_wrapper_ptr->object_ptr;
 
@@ -625,7 +630,8 @@ void *picture_manager_kernel(void *input_ptr) {
             //keep the relase of SCS here because we still need the encodeContext strucutre here
             // Release the Reference's SequenceControlSet
             eb_release_object(input_picture_demux_ptr->scs_wrapper_ptr);
-
+            // eb_add_time_entry(EB_PM, EB_TASK2, EB_NOTASK, input_picture_demux_ptr->picture_number, -1, -1,
+            //                     start_stime, start_utime);
             break;
         case EB_PIC_FEEDBACK:
             scs_ptr = (SequenceControlSet *)input_picture_demux_ptr->scs_wrapper_ptr->object_ptr;
@@ -653,6 +659,8 @@ void *picture_manager_kernel(void *input_ptr) {
             //keep the release of SCS here because we still need the encodeContext structure here
             // Release the Reference's SequenceControlSet
             eb_release_object(input_picture_demux_ptr->scs_wrapper_ptr);
+            // eb_add_time_entry(EB_PM, EB_TASK3, EB_NOTASK, input_picture_demux_ptr->picture_number, -1, -1,
+            //                     start_stime, start_utime);
 
             break;
         default:
@@ -1382,8 +1390,9 @@ void *picture_manager_kernel(void *input_ptr) {
                         rate_control_tasks_ptr->task_type       = RC_PICTURE_MANAGER_RESULT;
 
                         // Post the Full Results Object
+                        eb_add_time_entry(EB_PM, (EbTaskType)input_picture_demux_ptr->picture_type, EB_TASK0, child_pcs_ptr->picture_number, -1, -1,
+                            start_stime, start_utime);
                         eb_post_full_object(output_wrapper_ptr);
-
                         // Remove the Input Entry from the Input Queue
                         input_entry_ptr->input_object_ptr = (EbObjectWrapper *)EB_NULL;
                     }

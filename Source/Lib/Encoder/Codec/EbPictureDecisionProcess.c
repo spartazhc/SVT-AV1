@@ -26,6 +26,7 @@
 #include "EbObject.h"
 #include "EbUtility.h"
 #include "EbLog.h"
+#include "EbTime.h"
 
 /************************************************
  * Defines
@@ -4436,12 +4437,15 @@ void* picture_decision_kernel(void *input_ptr)
     // Debug
     uint64_t                           loop_count = 0;
 
+    uint64_t    start_stime;
+    uint64_t    start_utime;
     for (;;) {
         // Get Input Full Object
         EB_GET_FULL_OBJECT(
             context_ptr->picture_analysis_results_input_fifo_ptr,
             &in_results_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         in_results_ptr = (PictureAnalysisResults*)in_results_wrapper_ptr->object_ptr;
         pcs_ptr = (PictureParentControlSet*)in_results_ptr->pcs_wrapper_ptr->object_ptr;
         scs_ptr = (SequenceControlSet*)pcs_ptr->scs_wrapper_ptr->object_ptr;
@@ -5265,6 +5269,9 @@ void* picture_decision_kernel(void *input_ptr)
                                         out_results_ptr->pcs_wrapper_ptr = encode_context_ptr->pre_assignment_buffer[out_stride_diff64];
                                         out_results_ptr->segment_index = seg_idx;
                                         out_results_ptr->task_type = 1;
+                                        if (seg_idx == 0 || seg_idx == pcs_ptr->tf_segments_total_count - 1)
+                                            eb_add_time_entry(EB_PD, EB_TASK0, EB_TASK1, pcs_ptr->picture_number, seg_idx, -1,
+                                                        start_stime, start_utime);
                                         eb_post_full_object(out_results_wrapper_ptr);
                                     }
 
@@ -5452,6 +5459,9 @@ void* picture_decision_kernel(void *input_ptr)
                                     out_results_ptr->segment_index = segment_index;
                                     out_results_ptr->task_type = 0;
                                     // Post the Full Results Object
+                                    if (segment_index == 0 || segment_index == 59)
+                                        eb_add_time_entry(EB_PD, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, segment_index, -1,
+                                                    start_stime, start_utime);
                                     eb_post_full_object(out_results_wrapper_ptr);
                                 }
                             }

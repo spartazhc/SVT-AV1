@@ -2335,6 +2335,35 @@ typedef struct EbMemoryMapEntry
     EbPtr                    prev_entry;     // pointer to the prev entry
 } EbMemoryMapEntry;
 
+typedef enum EbTaskType
+{
+    EB_NOTASK = -1,
+    EB_TASK0 = 0,
+    EB_TASK1 = 1,
+    EB_TASK2 = 2,
+    EB_TASK3 = 3
+} EbTaskType;
+
+typedef enum EbProcessType
+{
+    EB_RESOURCE = 0,
+    EB_PA = 1,
+    EB_PD = 2,
+    EB_ME = 3,
+    EB_IRC = 4,
+    EB_SRC = 5,
+    EB_PM = 6,
+    EB_RC = 7,
+    EB_MDC = 8,
+    EB_ENCDEC = 9,
+    EB_DLF = 10,
+    EB_CDEF = 11,
+    EB_REST = 12,
+    EB_ENTROPY = 13,
+    EB_PAK = 14,
+    EB_PROCESS_TYPE_TOTAL
+} EbProcessType;
+
 // Rate Control
 #define THRESHOLD1QPINCREASE     1
 #define THRESHOLD2QPINCREASE     2

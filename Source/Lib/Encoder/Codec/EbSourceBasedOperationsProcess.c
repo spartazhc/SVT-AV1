@@ -12,6 +12,7 @@
 #include "emmintrin.h"
 #include "EbEncHandle.h"
 #include "EbUtility.h"
+#include "EbTime.h"
 
 /**************************************
  * Context
@@ -112,11 +113,15 @@ void *source_based_operations_kernel(void *input_ptr) {
     EbObjectWrapper *          out_results_wrapper_ptr;
     PictureDemuxResults *      out_results_ptr;
 
+    uint64_t    start_stime;
+    uint64_t    start_utime;
+
     for (;;) {
         // Get Input Full Object
         EB_GET_FULL_OBJECT(context_ptr->initial_rate_control_results_input_fifo_ptr,
                            &in_results_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         in_results_ptr = (InitialRateControlResults *)in_results_wrapper_ptr->object_ptr;
         pcs_ptr        = (PictureParentControlSet *)in_results_ptr->pcs_wrapper_ptr->object_ptr;
         context_ptr->complete_sb_count             = 0;
@@ -159,6 +164,8 @@ void *source_based_operations_kernel(void *input_ptr) {
         eb_release_object(in_results_wrapper_ptr);
 
         // Post the Full Results Object
+        eb_add_time_entry(EB_SRC, EB_TASK0, EB_TASK1, pcs_ptr->picture_number, -1, -1,
+                            start_stime, start_utime);
         eb_post_full_object(out_results_wrapper_ptr);
     }
     return EB_NULL;

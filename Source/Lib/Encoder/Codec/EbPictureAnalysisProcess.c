@@ -24,6 +24,7 @@
 #include "EbMotionEstimationContext.h"
 #include "EbPictureOperators.h"
 #include "EbResize.h"
+#include "EbTime.h"
 
 #define VARIANCE_PRECISION 16
 #define SB_LOW_VAR_TH 5
@@ -3519,6 +3520,9 @@ void *picture_analysis_kernel(void *input_ptr) {
     uint32_t pic_height_in_sb;
     uint32_t sb_total_count;
 
+    // Profile
+    uint64_t start_stime;
+    uint64_t start_utime;
     for (;;) {
         // Get Input Full Object
         EB_GET_FULL_OBJECT(context_ptr->resource_coordination_results_input_fifo_ptr,
@@ -3526,6 +3530,7 @@ void *picture_analysis_kernel(void *input_ptr) {
 
         in_results_ptr = (ResourceCoordinationResults *)in_results_wrapper_ptr->object_ptr;
         pcs_ptr        = (PictureParentControlSet *)in_results_ptr->pcs_wrapper_ptr->object_ptr;
+        eb_start_time(&start_stime, &start_utime);
 
         // Mariana : save enhanced picture ptr, move this from here
         pcs_ptr->enhanced_unscaled_picture_ptr = pcs_ptr->enhanced_picture_ptr;
@@ -3629,6 +3634,8 @@ void *picture_analysis_kernel(void *input_ptr) {
         eb_release_object(in_results_wrapper_ptr);
 
         // Post the Full Results Object
+        eb_add_time_entry(EB_PA, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, -1, -1,
+                                start_stime, start_utime);
         eb_post_full_object(out_results_wrapper_ptr);
     }
     return EB_NULL;

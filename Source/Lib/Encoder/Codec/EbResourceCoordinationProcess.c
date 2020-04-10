@@ -1106,6 +1106,8 @@ void *resource_coordination_kernel(void *input_ptr) {
                     ((PictureParentControlSet *)prev_pcs_wrapper_ptr->object_ptr)
                         ->alt_ref_ppcs_ptr->end_of_sequence_flag = EB_TRUE;
                 // Post the finished Results Object
+                eb_add_time_entry(EB_RESOURCE, EB_TASK0, EB_TASK0, pcs_ptr->picture_number - 1, -1, -1,
+                                pcs_ptr->start_time_seconds, pcs_ptr->start_time_u_seconds);
                 eb_post_full_object(output_wrapper_ptr);
             }
             prev_pcs_wrapper_ptr = pcs_wrapper_ptr;

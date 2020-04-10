@@ -80,6 +80,22 @@ void eb_compute_overall_elapsed_time_ms(uint64_t start_seconds, uint64_t start_u
 #endif
 }
 
+void eb_compute_overall_elapsed_time_realms(uint64_t start_seconds, uint64_t start_u_seconds,
+                                        uint64_t finish_seconds, uint64_t finish_u_seconds,
+                                        double *duration) {
+#ifdef _WIN32
+    //double  duration;
+    *duration = (double)(finish_seconds - start_seconds);
+    (void)(start_u_seconds);
+    (void)(finish_u_seconds);
+#else
+    long mtime, seconds, useconds;
+    seconds   = finish_seconds - start_seconds;
+    useconds  = finish_u_seconds - start_u_seconds;
+    *duration = (double)((seconds) * 1000 + useconds / 1000.0);
+#endif
+}
+
 void eb_sleep_ms(uint64_t milli_seconds) {
     if (milli_seconds) {
 #ifdef _WIN32

@@ -28,6 +28,7 @@
 #include "EbSequenceControlSet.h"
 #include "EbUtility.h"
 #include "EbPictureControlSet.h"
+#include "EbTime.h"
 
 static int32_t priconv[REDUCED_PRI_STRENGTHS] = {0, 1, 2, 3, 5, 7, 10, 13};
 
@@ -510,10 +511,14 @@ void *cdef_kernel(void *input_ptr) {
 
     // SB Loop variables
 
+    uint64_t    start_stime;
+    uint64_t    start_utime;
+
     for (;;) {
         // Get DLF Results
         EB_GET_FULL_OBJECT(context_ptr->cdef_input_fifo_ptr, &dlf_results_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         dlf_results_ptr = (DlfResults *)dlf_results_wrapper_ptr->object_ptr;
         pcs_ptr         = (PictureControlSet *)dlf_results_ptr->pcs_wrapper_ptr->object_ptr;
         scs_ptr         = (SequenceControlSet *)pcs_ptr->scs_wrapper_ptr->object_ptr;
@@ -597,6 +602,8 @@ void *cdef_kernel(void *input_ptr) {
                 cdef_results_ptr->pcs_wrapper_ptr = dlf_results_ptr->pcs_wrapper_ptr;
                 cdef_results_ptr->segment_index   = segment_index;
                 // Post Cdef Results
+                eb_add_time_entry(EB_CDEF, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, segment_index, -1,
+                            start_stime, start_utime);
                 eb_post_full_object(cdef_results_wrapper_ptr);
             }
         }

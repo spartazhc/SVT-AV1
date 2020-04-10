@@ -23,6 +23,7 @@
 #include "EbRateControlTasks.h"
 #include "EbCabacContextModel.h"
 #include "EbLog.h"
+#include "EbTime.h"
 #define AV1_MIN_TILE_SIZE_BYTES 1
 #if TILES_PARALLEL
 void eb_av1_reset_loop_restoration(PictureControlSet *piCSetPtr, uint16_t tile_idx);
@@ -551,11 +552,16 @@ void *entropy_coding_kernel(void *input_ptr) {
     uint32_t    pic_width_in_sb;
     // Variables
     EbBool initial_process_call;
+
+    uint64_t    start_stime;
+    uint64_t    start_utime;
+
     for (;;) {
         // Get Mode Decision Results
 #if TILES_PARALLEL
         EB_GET_FULL_OBJECT(context_ptr->enc_dec_input_fifo_ptr, &rest_results_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         rest_results_ptr = (RestResults *)rest_results_wrapper_ptr->object_ptr;
         pcs_ptr          = (PictureControlSet *)rest_results_ptr->pcs_wrapper_ptr->object_ptr;
 #else
@@ -668,6 +674,8 @@ void *entropy_coding_kernel(void *input_ptr) {
                     rate_control_task_ptr->segment_index   = ~0u;
 
                     // Post EncDec Results
+                    eb_add_time_entry(EB_ENTROPY, EB_TASK0, EB_TASK2, pcs_ptr->picture_number, y_sb_index, tile_idx,
+                            start_stime, start_utime);
                     eb_post_full_object(rate_control_task_wrapper_ptr);
                 }
 
@@ -750,6 +758,8 @@ void *entropy_coding_kernel(void *input_ptr) {
                                 rest_results_ptr->pcs_wrapper_ptr;
 
                             // Post EntropyCoding Results
+                            eb_add_time_entry(EB_ENTROPY, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, -1, -1,
+                                        start_stime, start_utime);
                             eb_post_full_object(entropy_coding_results_wrapper_ptr);
                         }
                     } // End if(PictureCompleteFlag)

@@ -10,10 +10,15 @@
 #include "EbSvtAv1Enc.h"
 #include "EbDefinitions.h"
 
+#define DEBUG_TIMESTAMP
+
 #ifndef NDEBUG
 #define DEBUG_MEMORY_USAGE
 #endif
 
+void eb_add_time_entry(EbProcessType proc_type, EbTaskType in_type, EbTaskType out_type,
+                        uint32_t pic_num, int16_t seg_idx, int8_t tile_idx,
+                        uint64_t start_sTime, uint64_t start_uTime);
 #ifdef DEBUG_MEMORY_USAGE
 void eb_add_mem_entry(void* ptr, EbPtrType type, size_t count, const char* file, uint32_t line);
 void eb_remove_mem_entry(void* ptr, EbPtrType type);
@@ -172,6 +177,7 @@ void eb_remove_mem_entry(void* ptr, EbPtrType type);
 
 #define EB_FREE_ALIGNED_ARRAY(pa) EB_FREE_ALIGNED(pa)
 
+void eb_print_time_usage();
 void eb_print_memory_usage();
 void eb_increase_component_count();
 void eb_decrease_component_count();

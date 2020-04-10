@@ -25,7 +25,9 @@
 #include "grainSynthesis.h"
 //To fix warning C4013: 'convert_16bit_to_8bit' undefined; assuming extern returning int
 #include "common_dsp_rtcd.h"
+#include "EbTime.h"
 
+// #define SEG_TRACE
 #define FC_SKIP_TX_SR_TH025 125 // Fast cost skip tx search threshold.
 #define FC_SKIP_TX_SR_TH010 110 // Fast cost skip tx search threshold.
 void eb_av1_cdef_search(EncDecContext *context_ptr, SequenceControlSet *scs_ptr,
@@ -368,7 +370,8 @@ static void enc_dec_configure_sb(EncDecContext *context_ptr, SuperBlock *sb_ptr,
  *   threads from performing an update (A).
  ******************************************************/
 EbBool assign_enc_dec_segments(EncDecSegments *segmentPtr, uint16_t *segmentInOutIndex,
-                               EncDecTasks *taskPtr, EbFifo *srmFifoPtr) {
+                               EncDecTasks *taskPtr, EbFifo *srmFifoPtr,
+                               uint64_t start_stime, uint64_t start_utime) {
     EbBool           continue_processing_flag = EB_FALSE;
     EbObjectWrapper *wrapper_ptr;
     EncDecTasks *    feedback_task_ptr;
@@ -382,12 +385,19 @@ EbBool assign_enc_dec_segments(EncDecSegments *segmentPtr, uint16_t *segmentInOu
 
     uint32_t self_assigned = EB_FALSE;
 
-    //static FILE *trace = 0;
-    //
-    //if(trace == 0) {
-    //    trace = fopen("seg-trace.txt","w");
-    //}
+#ifdef SEG_TRACE
+    static FILE *trace = 0;
+    static uint64_t start_s;
+    static uint64_t start_us;
+    uint64_t end_s;
+    uint64_t end_us;
+    double dur;
 
+    if(trace == 0) {
+       trace = fopen("/tmp/seg-trace.txt","w");
+       eb_start_time(&start_s, &start_us);
+    }
+#endif
     switch (taskPtr->input_type) {
     case ENCDEC_TASKS_MDC_INPUT:
 
@@ -400,10 +410,13 @@ EbBool assign_enc_dec_segments(EncDecSegments *segmentPtr, uint16_t *segmentInOu
         ++segmentPtr->row_array[0].current_seg_index;
         continue_processing_flag = EB_TRUE;
 
-        //fprintf(trace, "Start  Pic: %u Seg: %u\n",
-        //    (unsigned) ((PictureControlSet*) taskPtr->pcs_wrapper_ptr->object_ptr)->picture_number,
-        //    *segmentInOutIndex);
-
+#ifdef SEG_TRACE
+        eb_finish_time(&end_s, &end_us);
+        eb_compute_overall_elapsed_time_realms(start_s, start_us, end_s, end_us, &dur);
+        fprintf(trace, "Start  Pic[0  ]: %u Seg: %3u, Dur: %.2f\n",
+           (unsigned) ((PictureControlSet*) taskPtr->pcs_wrapper_ptr->object_ptr)->picture_number,
+           *segmentInOutIndex, dur);
+#endif
         break;
 
     case ENCDEC_TASKS_ENCDEC_INPUT:
@@ -417,10 +430,13 @@ EbBool assign_enc_dec_segments(EncDecSegments *segmentPtr, uint16_t *segmentInOu
         ++segmentPtr->row_array[taskPtr->enc_dec_segment_row].current_seg_index;
         continue_processing_flag = EB_TRUE;
 
-        //fprintf(trace, "Start  Pic: %u Seg: %u\n",
-        //    (unsigned) ((PictureControlSet*) taskPtr->pcs_wrapper_ptr->object_ptr)->picture_number,
-        //    *segmentInOutIndex);
-
+#ifdef SEG_TRACE
+        eb_finish_time(&end_s, &end_us);
+        eb_compute_overall_elapsed_time_realms(start_s, start_us, end_s, end_us, &dur);
+        fprintf(trace, "Start  Pic[1  ]: %u Seg: %3u, Seg_row: %2d, Dur: %.2f\n",
+           (unsigned) ((PictureControlSet*) taskPtr->pcs_wrapper_ptr->object_ptr)->picture_number,
+           *segmentInOutIndex, taskPtr->enc_dec_segment_row, dur);
+#endif
         break;
 
     case ENCDEC_TASKS_CONTINUE:
@@ -444,9 +460,13 @@ EbBool assign_enc_dec_segments(EncDecSegments *segmentPtr, uint16_t *segmentInOu
                 self_assigned            = EB_TRUE;
                 continue_processing_flag = EB_TRUE;
 
-                //fprintf(trace, "Start  Pic: %u Seg: %u\n",
-                //    (unsigned) ((PictureControlSet*) taskPtr->pcs_wrapper_ptr->object_ptr)->picture_number,
-                //    *segmentInOutIndex);
+#ifdef SEG_TRACE
+                eb_finish_time(&end_s, &end_us);
+                eb_compute_overall_elapsed_time_realms(start_s, start_us, end_s, end_us, &dur);
+                fprintf(trace, "Start  Pic[2-r]: %u Seg: %3u, Prev: %3u, Seg_row: %2d, Dur: %.2f\n",
+                   (unsigned) ((PictureControlSet*) taskPtr->pcs_wrapper_ptr->object_ptr)->picture_number,
+                   *segmentInOutIndex, segment_index, row_segment_index, dur);
+#endif
             }
 
             eb_release_mutex(segmentPtr->row_array[row_segment_index].assignment_mutex);
@@ -470,9 +490,13 @@ EbBool assign_enc_dec_segments(EncDecSegments *segmentPtr, uint16_t *segmentInOu
                     self_assigned            = EB_TRUE;
                     continue_processing_flag = EB_TRUE;
 
-                    //fprintf(trace, "Start  Pic: %u Seg: %u\n",
-                    //    (unsigned) ((PictureControlSet*) taskPtr->pcs_wrapper_ptr->object_ptr)->picture_number,
-                    //    *segmentInOutIndex);
+#ifdef SEG_TRACE
+                    eb_finish_time(&end_s, &end_us);
+                    eb_compute_overall_elapsed_time_realms(start_s, start_us, end_s, end_us, &dur);
+                    fprintf(trace, "Start  Pic[2-b]: %u Seg: %3u, Prev: %3u, Seg_row: %2d, Dur: %.2f\n",
+                       (unsigned) ((PictureControlSet*) taskPtr->pcs_wrapper_ptr->object_ptr)->picture_number,
+                       *segmentInOutIndex, segment_index, row_segment_index + 1, dur);
+#endif
                 }
             }
             eb_release_mutex(segmentPtr->row_array[row_segment_index + 1].assignment_mutex);
@@ -487,6 +511,17 @@ EbBool assign_enc_dec_segments(EncDecSegments *segmentPtr, uint16_t *segmentInOu
 #if TILES_PARALLEL
             feedback_task_ptr->tile_group_index = taskPtr->tile_group_index;
 #endif
+#ifdef SEG_TRACE
+            eb_finish_time(&end_s, &end_us);
+            eb_compute_overall_elapsed_time_realms(start_s, start_us, end_s, end_us, &dur);
+            fprintf(trace, "Start  Pic[2-c]: %u Seg: %3u, Prev: %3d, Seg_row: %2d, Dur: %.2f\n",
+                (unsigned) ((PictureControlSet*) taskPtr->pcs_wrapper_ptr->object_ptr)->picture_number,
+                segmentPtr->row_array[feedback_row_index].current_seg_index, segment_index, feedback_row_index, dur);
+#endif
+            // eb_add_time_entry(EB_ENCDEC, (EbTaskType)taskPtr->input_type, (EbTaskType)ENCDEC_TASKS_ENCDEC_INPUT,
+            //                 ((PictureControlSet*)taskPtr->pcs_wrapper_ptr->object_ptr)->picture_number,
+            //                 feedback_row_index, taskPtr->tile_group_index,
+            //                 start_stime, start_utime);
             eb_post_full_object(wrapper_ptr);
         }
 
@@ -2829,10 +2864,14 @@ void *enc_dec_kernel(void *input_ptr) {
 
     segment_index = 0;
 
+    uint64_t    start_stime;
+    uint64_t    start_utime;
+
     for (;;) {
         // Get Mode Decision Results
         EB_GET_FULL_OBJECT(context_ptr->mode_decision_input_fifo_ptr, &enc_dec_tasks_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         enc_dec_tasks_ptr = (EncDecTasks *)enc_dec_tasks_wrapper_ptr->object_ptr;
         pcs_ptr           = (PictureControlSet *)enc_dec_tasks_ptr->pcs_wrapper_ptr->object_ptr;
         scs_ptr           = (SequenceControlSet *)pcs_ptr->scs_wrapper_ptr->object_ptr;
@@ -2865,7 +2904,8 @@ void *enc_dec_kernel(void *input_ptr) {
         while (assign_enc_dec_segments(segments_ptr,
                                        &segment_index,
                                        enc_dec_tasks_ptr,
-                                       context_ptr->enc_dec_feedback_fifo_ptr) == EB_TRUE) {
+                                       context_ptr->enc_dec_feedback_fifo_ptr,
+                                       start_stime, start_utime) == EB_TRUE) {
             x_sb_start_index = segments_ptr->x_start_array[segment_index];
             y_sb_start_index = segments_ptr->y_start_array[segment_index];
 #if TILES_PARALLEL
@@ -3207,6 +3247,8 @@ void *enc_dec_kernel(void *input_ptr) {
 #if TILES_PARALLEL
         pcs_ptr->enc_dec_coded_sb_count += (uint32_t)context_ptr->coded_sb_count;
         last_sb_flag = (pcs_ptr->sb_total_count_pix == pcs_ptr->enc_dec_coded_sb_count);
+        eb_add_time_entry(EB_ENCDEC, EB_NOTASK, EB_NOTASK, pcs_ptr->picture_number, pcs_ptr->enc_dec_coded_sb_count, -1,
+                            start_stime, start_utime);
 #endif
         eb_release_mutex(pcs_ptr->intra_mutex);
 
@@ -3249,6 +3291,8 @@ void *enc_dec_kernel(void *input_ptr) {
             enc_dec_results_ptr->completed_sb_row_count =
                 ((pcs_ptr->parent_pcs_ptr->aligned_height + scs_ptr->sb_size_pix - 1) >> sb_size_log2);
             // Post EncDec Results
+            eb_add_time_entry(EB_ENCDEC, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, -1, -1,
+                            start_stime, start_utime);
             eb_post_full_object(enc_dec_results_wrapper_ptr);
         }
         // Release Mode Decision Results

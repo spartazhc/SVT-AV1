@@ -30,6 +30,7 @@
 #include "EbLog.h"
 #include "EbCoefficients.h"
 #include "EbCommonUtils.h"
+#include "EbTime.h"
 
 
 int32_t get_qzbin_factor(int32_t q, AomBitDepth bit_depth);
@@ -1385,11 +1386,15 @@ void *mode_decision_configuration_kernel(void *input_ptr) {
     EbObjectWrapper *enc_dec_tasks_wrapper_ptr;
     EncDecTasks *    enc_dec_tasks_ptr;
 
+    uint64_t    start_stime;
+    uint64_t    start_utime;
+
     for (;;) {
         // Get RateControl Results
         EB_GET_FULL_OBJECT(context_ptr->rate_control_input_fifo_ptr,
                            &rate_control_results_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         rate_control_results_ptr =
             (RateControlResults *)rate_control_results_wrapper_ptr->object_ptr;
         pcs_ptr = (PictureControlSet *)rate_control_results_ptr->pcs_wrapper_ptr->object_ptr;
@@ -1697,6 +1702,8 @@ void *mode_decision_configuration_kernel(void *input_ptr) {
             enc_dec_tasks_ptr->tile_group_index = tile_group_idx;
 
             // Post the Full Results Object
+            eb_add_time_entry(EB_MDC , EB_TASK0, EB_TASK0, pcs_ptr->picture_number, -1, tile_group_idx,
+                            start_stime, start_utime);
             eb_post_full_object(enc_dec_tasks_wrapper_ptr);
         }
 #else

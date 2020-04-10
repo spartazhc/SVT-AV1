@@ -12,6 +12,7 @@
 #include "EbUtility.h"
 #include "EbReferenceObject.h"
 #include "EbResize.h"
+#include "EbTime.h"
 
 /**************************************
  * Context
@@ -862,15 +863,21 @@ void *initial_rate_control_kernel(void *input_ptr) {
 
     // Segments
     uint32_t segment_index;
+
+    uint64_t    start_stime;
+    uint64_t    start_utime;
+
     for (;;) {
         // Get Input Full Object
         EB_GET_FULL_OBJECT(context_ptr->motion_estimation_results_input_fifo_ptr,
                            &in_results_wrapper_ptr);
 
+        eb_start_time(&start_stime, &start_utime);
         in_results_ptr = (MotionEstimationResults *)in_results_wrapper_ptr->object_ptr;
         pcs_ptr        = (PictureParentControlSet *)in_results_ptr->pcs_wrapper_ptr->object_ptr;
 
         segment_index = in_results_ptr->segment_index;
+
 
         // Set the segment mask
         SEGMENT_COMPLETION_MASK_SET(pcs_ptr->me_segments_completion_mask, segment_index);
@@ -1102,6 +1109,8 @@ void *initial_rate_control_kernel(void *input_ptr) {
                             out_results_ptr->pcs_wrapper_ptr =
                                 queue_entry_ptr->parent_pcs_wrapper_ptr;
                         // Post the Full Results Object
+                        eb_add_time_entry(EB_IRC, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, -1, -1,
+                                        start_stime, start_utime);
                         eb_post_full_object(out_results_wrapper_ptr);
                     }
                     // Reset the Reorder Queue Entry
