@@ -216,6 +216,7 @@ typedef struct ModeDecisionContext {
     uint8_t          sb_sz;
     uint32_t         sb_origin_x;
     uint32_t         sb_origin_y;
+    uint32_t         sb_index;
     uint32_t         round_origin_x;
     uint32_t         round_origin_y;
     uint16_t         pu_origin_x;

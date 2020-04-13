@@ -7023,6 +7023,28 @@ void interintra_class_pruning_3(ModeDecisionContext *context_ptr, uint64_t best_
         context_ptr->md_stage_3_total_count += context_ptr->md_stage_3_count[cand_class_it];
     }
 }
+uint16_t get_jnd_index(PictureControlSet *pcs_ptr, ModeDecisionContext *context_ptr) {
+    uint8_t blk_idx = -1;
+    const uint8_t origin_x = context_ptr->blk_geom->origin_x;
+    const uint8_t origin_y = context_ptr->blk_geom->origin_y;
+    if (context_ptr->blk_geom->shape != PART_N) return -1;
+
+    switch (context_ptr->blk_geom->bsize) {
+    case BLOCK_64X64: blk_idx = 0; break;
+    case BLOCK_32X32: blk_idx = origin_x / 32 + origin_y / 32 * 2; break;
+    case BLOCK_16X16: blk_idx = origin_x / 16 + origin_y / 16 * 4; break;
+    case BLOCK_8X8:   blk_idx = origin_x /  8 + origin_y /  8 * 8; break;
+    default:
+        return -1;
+        SVT_LOG("error: JND index error!\n");
+        break;
+    }
+    return pcs_ptr->parent_pcs_ptr->jnd[context_ptr->sb_index][blk_idx];
+}
+void adjust_md_stage_count_jnd(PictureControlSet *pcs_ptr, ModeDecisionContext *context_ptr) {
+    uint16_t jnd = get_jnd_index(pcs_ptr, context_ptr);
+    // context_ptr->md_stage_1_count;
+}
 
 void md_encode_block(PictureControlSet *pcs_ptr, ModeDecisionContext *context_ptr,
                      EbPictureBufferDesc *input_picture_ptr,
@@ -7050,6 +7072,10 @@ void md_encode_block(PictureControlSet *pcs_ptr, ModeDecisionContext *context_pt
     BlkStruct *blk_ptr        = context_ptr->blk_ptr;
     candidate_buffer_ptr_array = &(candidate_buffer_ptr_array_base[0]);
 
+    static FILE *md_trace = 0;
+    if (md_trace == 0) {
+       md_trace = fopen("/tmp/md-trace.txt","w");
+    }
 #if COMP_SIMILAR
     signal_derivation_block(
         pcs_ptr,
@@ -7178,10 +7204,16 @@ void md_encode_block(PictureControlSet *pcs_ptr, ModeDecisionContext *context_pt
     generate_md_stage_0_cand(
         context_ptr->sb_ptr, context_ptr, &fast_candidate_total_count, pcs_ptr);
 
+    // fprintf(md_trace, "POC: %2lu, ttl: %d| %u, %u, %u, %u, %u, %u, %u, %u, %u|\n", pcs_ptr->picture_number, fast_candidate_total_count,
+    //         context_ptr->md_stage_0_count[0], context_ptr->md_stage_0_count[1], context_ptr->md_stage_0_count[2],
+    //         context_ptr->md_stage_0_count[3], context_ptr->md_stage_0_count[4], context_ptr->md_stage_0_count[5],
+    //         context_ptr->md_stage_0_count[6], context_ptr->md_stage_0_count[7], context_ptr->md_stage_0_count[8]);
     //MD Stages
     //The first stage(old fast loop) and the last stage(old full loop) should remain at their locations, new stages could be created between those two.
     //a bypass mechanism should be added to skip one or all of the intermediate stages, in a way to to be able to fall back to org design (FastLoop->FullLoop)
     set_md_stage_counts(pcs_ptr, context_ptr, fast_candidate_total_count);
+
+    adjust_md_stage_count_jnd(pcs_ptr, context_ptr);
 
     CandClass cand_class_it;
     uint32_t  buffer_start_idx = 0;
@@ -7396,6 +7428,14 @@ void md_encode_block(PictureControlSet *pcs_ptr, ModeDecisionContext *context_pt
         context_ptr->prune_ref_frame_for_rec_partitions,
         &best_intra_mode);
     candidate_buffer = candidate_buffer_ptr_array[candidate_index];
+
+    int index;
+    for (index = 0; index < 7; ++index) {
+        if (candidate_index == context_ptr->sorted_candidate_index_array[index]) {
+            break;
+        }
+    }
+    fprintf(md_trace, "best index: %d / 7\n", index);
 
     bestcandidate_buffers[0] = candidate_buffer;
     uint8_t sq_index         = LOG2F(context_ptr->blk_geom->sq_size) - 2;
@@ -8094,6 +8134,7 @@ EB_EXTERN EbErrorType mode_decision_sb(SequenceControlSet *scs_ptr, PictureContr
         context_ptr->round_origin_y              = ((context_ptr->blk_origin_y >> 3) << 3);
         context_ptr->sb_origin_x                 = sb_origin_x;
         context_ptr->sb_origin_y                 = sb_origin_y;
+        context_ptr->sb_index = sb_origin_x / 64 + (sb_origin_y / 64) * (input_picture_ptr->width / 64);
         context_ptr->md_local_blk_unit[blk_idx_mds].tested_blk_flag = EB_TRUE;
         context_ptr->md_ep_pipe_sb[blk_idx_mds].merge_cost          = 0;
         context_ptr->md_ep_pipe_sb[blk_idx_mds].skip_cost           = 0;

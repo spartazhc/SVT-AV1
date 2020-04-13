@@ -1810,6 +1810,7 @@ static void picture_parent_control_set_dctor(EbPtr p) {
         EB_DELETE(obj->chroma_downsampled_picture_ptr);
 
     EB_FREE_2D(obj->variance);
+    EB_FREE_2D(obj->jnd);
     EB_FREE_2D(obj->y_mean);
     EB_FREE_2D(obj->cb_mean);
     EB_FREE_2D(obj->cr_mean);
@@ -1935,6 +1936,7 @@ EbErrorType picture_parent_control_set_ctor(PictureParentControlSet *object_ptr,
     object_ptr->data_ll_head_ptr         = (EbLinkedListNode *)EB_NULL;
     object_ptr->app_out_data_ll_head_ptr = (EbLinkedListNode *)EB_NULL;
     EB_MALLOC_2D(object_ptr->variance, object_ptr->sb_total_count, MAX_ME_PU_COUNT);
+    EB_MALLOC_2D(object_ptr->jnd, object_ptr->sb_total_count, MAX_ME_PU_COUNT);
     EB_MALLOC_2D(object_ptr->y_mean, object_ptr->sb_total_count, MAX_ME_PU_COUNT);
     EB_MALLOC_2D(object_ptr->cb_mean, object_ptr->sb_total_count, 21);
     EB_MALLOC_2D(object_ptr->cr_mean, object_ptr->sb_total_count, 21);

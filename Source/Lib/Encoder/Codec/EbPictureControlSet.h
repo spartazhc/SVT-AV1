@@ -634,6 +634,7 @@ typedef struct PictureParentControlSet {
     uint8_t **       y_mean;
     uint8_t **       cb_mean;
     uint8_t **       cr_mean;
+    uint16_t **      jnd;
     uint32_t         pre_assignment_buffer_count;
     uint16_t         pic_avg_variance;
     EbBool           scene_transition_flag[MAX_NUM_OF_REF_PIC_LIST];

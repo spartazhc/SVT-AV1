@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "aom_dsp_rtcd.h"
 #include "EbDefinitions.h"
@@ -2983,6 +2984,96 @@ void calculate_input_average_intensity(SequenceControlSet *     scs_ptr,
     return;
 }
 
+/*******************************************
+ * compute_mean
+ *   returns the mean of a block
+ *******************************************/
+void filter2d_c(float *dst,
+                uint8_t *src,
+                uint16_t *offset,
+                const uint16_t *kernel,
+                uint16_t kernel_size,
+                uint16_t pad_stride,
+                uint16_t input_width,
+                uint16_t input_height)
+{
+    const uint16_t kernel_len = kernel_size * kernel_size;
+
+    uint8_t *sptr = src;
+    float *dptr = dst;
+    uint32_t temps = 0, tempd = 0;
+    for( int y = 0; y < input_height; y++ ) {
+        for( int x = 0; x < input_width; x++ ) {
+            uint16_t s = 0;
+            for( int i = 0; i < kernel_len ; i++ )
+                s += (uint16_t)(sptr[temps + x + offset[i]]) * kernel[i];
+            s /= 32;
+            if (s <= 127) {
+                dptr[tempd + x] = 17 * (1 - sqrt(s / 127));
+            } else {
+                dptr[tempd + x] = (s - 127) * 3 / 128.0 + 3;
+            }
+        }
+        temps += pad_stride;
+        tempd += input_width;
+    }
+}
+
+void compute_jnd_statistics(PictureParentControlSet *pcs_ptr,
+                            EbPictureBufferDesc *input_picture_ptr) {
+    EbByte pad_y;
+    float *LA;
+    const uint16_t padding = 2;
+    const uint16_t pad_stride = input_picture_ptr->width + padding * 2;
+    const uint16_t kernel_size = 2 * padding + 1;
+
+    const uint32_t pad_size = (input_picture_ptr->width + padding * 2) *
+                            (input_picture_ptr->height + padding * 2);
+    const uint32_t bg_size = input_picture_ptr->width * input_picture_ptr->height;
+
+    EB_CALLOC_ALIGNED_ARRAY(pad_y, pad_size);
+    EB_CALLOC_ALIGNED_ARRAY(LA, bg_size);
+
+
+    // // first, padding input picture by 2
+    uint8_t *pinput = input_picture_ptr->buffer_y + input_picture_ptr->origin_x +
+                    input_picture_ptr->origin_y * input_picture_ptr->stride_y;
+    uint8_t *ppad = pad_y + padding + padding * pad_stride;
+
+
+    for (uint32_t row = 1; row < input_picture_ptr->height; ++row) {
+        EB_MEMCPY(ppad + row * pad_stride,
+                    pinput + row * input_picture_ptr->stride_y,
+                    sizeof(uint8_t) * input_picture_ptr->width);
+    }
+
+
+    uint16_t *offset;
+    const uint16_t kernel[5*5] = { 1, 1, 1, 1, 1,
+                                   1, 2, 2, 2, 1,
+                                   1, 2, 0, 2, 1,
+                                   1, 2, 2, 2, 1,
+                                   1, 1, 1, 1, 1};
+
+    EB_MALLOC(offset, sizeof(uint16_t) * kernel_size * kernel_size);
+
+    for(uint8_t i = 0; i < kernel_size; i++)
+        for(uint8_t j = 0; j < kernel_size; j++)
+            offset[i * kernel_size + j] = i * pad_stride + j;
+
+    // for(uint8_t i = 0; i < kernel_size; i++)
+    //     for(uint8_t j = 0; j < kernel_size; j++)
+    //         printf("%d, ", offset[i * kernel_size + j]);
+
+
+    filter2d_c(LA, pad_y, offset, kernel, kernel_size, pad_stride,
+                     input_picture_ptr->width, input_picture_ptr->height);
+
+
+    EB_FREE(offset);
+    EB_FREE_ALIGNED_ARRAY(pad_y);
+    EB_FREE_ALIGNED_ARRAY(LA);
+}
 /************************************************
  * Gathering statistics per picture
  ** Calculating the pixel intensity histogram bins per picture needed for SCD
@@ -3021,6 +3112,27 @@ void gathering_picture_statistics(SequenceControlSet *scs_ptr, PictureParentCont
 
     compute_picture_spatial_statistics(
         scs_ptr, pcs_ptr, input_picture_ptr, input_padded_picture_ptr, sb_total_count);
+
+    uint64_t start_stime, start_utime;
+    uint64_t end_stime, end_utime;
+    double duration;
+    eb_start_time(&start_stime, &start_utime);
+    compute_jnd_statistics(pcs_ptr, input_picture_ptr);
+    eb_finish_time(&end_stime, &end_utime);
+    eb_compute_overall_elapsed_time_ms(start_stime, start_utime,
+                                        end_stime, end_utime, &duration);
+    printf("jnd time = %.2f\n", duration);
+
+
+    eb_start_time(&start_stime, &start_utime);
+    double j;
+
+    for (int i = 0; i < 1920*1080; ++i)
+        j = sqrt(input_picture_ptr->buffer_y[i]/127.0);
+    eb_finish_time(&end_stime, &end_utime);
+    eb_compute_overall_elapsed_time_ms(start_stime, start_utime,
+                                        end_stime, end_utime, &duration);
+    printf("jnd time = %.2f\n", duration);
 
     return;
 }
