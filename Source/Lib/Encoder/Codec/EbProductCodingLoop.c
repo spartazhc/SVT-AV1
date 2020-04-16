@@ -7023,7 +7023,7 @@ void interintra_class_pruning_3(ModeDecisionContext *context_ptr, uint64_t best_
         context_ptr->md_stage_3_total_count += context_ptr->md_stage_3_count[cand_class_it];
     }
 }
-uint16_t get_jnd_index(PictureControlSet *pcs_ptr, ModeDecisionContext *context_ptr) {
+float get_jnd_index(PictureControlSet *pcs_ptr, ModeDecisionContext *context_ptr) {
     uint8_t blk_idx = -1;
     const uint8_t origin_x = context_ptr->blk_geom->origin_x;
     const uint8_t origin_y = context_ptr->blk_geom->origin_y;
@@ -7031,9 +7031,9 @@ uint16_t get_jnd_index(PictureControlSet *pcs_ptr, ModeDecisionContext *context_
 
     switch (context_ptr->blk_geom->bsize) {
     case BLOCK_64X64: blk_idx = 0; break;
-    case BLOCK_32X32: blk_idx = origin_x / 32 + origin_y / 32 * 2; break;
-    case BLOCK_16X16: blk_idx = origin_x / 16 + origin_y / 16 * 4; break;
-    case BLOCK_8X8:   blk_idx = origin_x /  8 + origin_y /  8 * 8; break;
+    case BLOCK_32X32: blk_idx =  1 + origin_x / 32 + origin_y / 32 * 2; break;
+    case BLOCK_16X16: blk_idx =  5 + origin_x / 16 + origin_y / 16 * 4; break;
+    case BLOCK_8X8:   blk_idx = 21 + origin_x /  8 + origin_y /  8 * 8; break;
     default:
         return -1;
         SVT_LOG("error: JND index error!\n");
@@ -7042,8 +7042,10 @@ uint16_t get_jnd_index(PictureControlSet *pcs_ptr, ModeDecisionContext *context_
     return pcs_ptr->parent_pcs_ptr->jnd[context_ptr->sb_index][blk_idx];
 }
 void adjust_md_stage_count_jnd(PictureControlSet *pcs_ptr, ModeDecisionContext *context_ptr) {
-    uint16_t jnd = get_jnd_index(pcs_ptr, context_ptr);
-    // context_ptr->md_stage_1_count;
+    float jnd = get_jnd_index(pcs_ptr, context_ptr);
+    if (jnd <= pcs_ptr->parent_pcs_ptr->pic_avg_jnd) {
+        context_ptr->md_stage_1_count[0] = 2;
+    }
 }
 
 void md_encode_block(PictureControlSet *pcs_ptr, ModeDecisionContext *context_ptr,
@@ -7213,7 +7215,8 @@ void md_encode_block(PictureControlSet *pcs_ptr, ModeDecisionContext *context_pt
     //a bypass mechanism should be added to skip one or all of the intermediate stages, in a way to to be able to fall back to org design (FastLoop->FullLoop)
     set_md_stage_counts(pcs_ptr, context_ptr, fast_candidate_total_count);
 
-    adjust_md_stage_count_jnd(pcs_ptr, context_ptr);
+    if (pcs_ptr->slice_type == I_SLICE)
+        adjust_md_stage_count_jnd(pcs_ptr, context_ptr);
 
     CandClass cand_class_it;
     uint32_t  buffer_start_idx = 0;
@@ -7435,7 +7438,7 @@ void md_encode_block(PictureControlSet *pcs_ptr, ModeDecisionContext *context_pt
             break;
         }
     }
-    fprintf(md_trace, "best index: %d / 7\n", index);
+    fprintf(md_trace, "best index: %d / 7, jnd: %.2f\n", index, get_jnd_index(pcs_ptr, context_ptr));
 
     bestcandidate_buffers[0] = candidate_buffer;
     uint8_t sq_index         = LOG2F(context_ptr->blk_geom->sq_size) - 2;
@@ -8099,6 +8102,13 @@ EB_EXTERN EbErrorType mode_decision_sb(SequenceControlSet *scs_ptr, PictureContr
     uint64_t v_cost;
 #endif
 
+    static FILE *jnd_trace = 0;
+    static int jnd_trace_flag = 0;
+
+    if(jnd_trace == 0) {
+       jnd_trace = fopen("/tmp/jnd-table.txt","w");
+    }
+
     uint32_t blk_idx_mds               = 0;
     uint32_t d1_blocks_accumlated      = 0;
     int      skip_next_nsq             = 0;
@@ -8149,6 +8159,28 @@ EB_EXTERN EbErrorType mode_decision_sb(SequenceControlSet *scs_ptr, PictureContr
                 ->split_flag; //mdc indicates smallest or non valid CUs with split flag=
         blk_ptr->qp          = context_ptr->qp;
         context_ptr->md_local_blk_unit[blk_idx_mds].best_d1_blk = blk_idx_mds;
+        if (jnd_trace_flag == 0) {
+            jnd_trace_flag = -1;
+            int p_sb_index = 0;
+            fprintf(jnd_trace, "sb_index = %d\n", p_sb_index);
+            fprintf(jnd_trace, "64x64: %6.2f\n", pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][0]);
+            fprintf(jnd_trace, "32x32: %6.2f, %6.2f, %6.2f, %6.2f\n", pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][1], pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][2],
+                                                                      pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][3], pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][4]);
+            fprintf(jnd_trace, "\n16x16:\n");
+            for (int r = 0; r < 4; ++r) {
+                for (int c = 0; c < 4; ++c) {
+                    fprintf(jnd_trace, "%6.2f, ", pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][5 + r * 8 + c]);
+                }
+                fprintf(jnd_trace, "\n");
+            }
+            fprintf(jnd_trace, "\n8x8:\n");
+            for (int r = 0; r < 8; ++r) {
+                for (int c = 0; c < 8; ++c) {
+                    fprintf(jnd_trace, "%6.2f, ", pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][21 + r * 8 + c]);
+                }
+                fprintf(jnd_trace, "\n");
+            }
+        }
         if (leaf_data_ptr->tot_d1_blocks != 1) {
             // We need to get the index of the sq_block for each NSQ branch
             if (d1_first_block) {

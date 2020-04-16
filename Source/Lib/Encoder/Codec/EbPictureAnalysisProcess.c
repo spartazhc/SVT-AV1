@@ -365,6 +365,43 @@ uint64_t compute_sub_mean_squared_values_c(
     return block_mean;
 }
 
+uint8_t bg_kernel[64] = {1, 1, 1, 2, 2, 1, 1, 1,
+                          1, 2, 2, 3, 3, 2, 2, 1,
+                          1, 2, 0, 3, 3, 0, 2, 1,
+                          1, 3, 3, 5, 5, 3, 3, 1,
+                          1, 3, 3, 5, 5, 3, 3, 1,
+                          1, 2, 0, 3, 3, 0, 2, 1,
+                          1, 2, 2, 3, 3, 2, 2, 1,
+                          1, 1, 1, 2, 2, 1, 1, 1};
+/*******************************************
+ * compute_la
+ *   returns the luma adaptation of a block
+ *******************************************/
+float compute_la_c(uint8_t *input_samples, /**< input parameter, input samples Ptr */
+                        uint32_t input_stride, /**< input parameter, input stride */
+                        uint32_t input_area_width, /**< input parameter, input area width */
+                        uint32_t input_area_height) /**< input parameter, input area height */
+{
+    uint32_t hi, vi, k = 0;
+    uint64_t bg = 0;
+    float la;
+
+    for (vi = 0; vi < input_area_height; vi++) {
+        for (hi = 0; hi < input_area_width; hi++) {
+                bg += input_samples[hi] * bg_kernel[k++];
+        }
+        input_samples += input_stride;
+    }
+
+    bg /= 128;
+    if (bg <= 127)
+        la = (1 - sqrt(bg / 127.0)) * 17;
+    else
+        la = (bg - 127) * 3 / 128.0 + 3;
+
+    return la;
+}
+
 void compute_interm_var_four8x8_c(uint8_t *input_samples, uint16_t input_stride,
                                   uint64_t *mean_of8x8_blocks, // mean of four  8x8
                                   uint64_t *mean_of_squared8x8_blocks) // meanSquared
@@ -2585,6 +2622,936 @@ EbErrorType compute_block_mean_compute_variance(
     return return_error;
 }
 
+EbErrorType compute_block_jnd(
+    PictureParentControlSet *pcs_ptr, // input parameter, Picture Control Set Ptr
+    EbPictureBufferDesc *    input_padded_picture_ptr, // input parameter, Input Padded Picture
+    uint32_t                 sb_index, // input parameter, SB address
+    uint32_t
+        input_luma_origin_index) // input parameter, SB index, used to point to source/reference samples
+{
+    EbErrorType return_error = EB_ErrorNone;
+
+    uint32_t block_index;
+    float cm, la;
+    uint16_t lc, index = 0;
+
+    float la_of8x8_blocks[64];      // luminance adaptation
+    float cm_of8x8_blocks[64];      // contrast masking
+
+    block_index = input_luma_origin_index;
+    // (0,0)
+    la_of8x8_blocks[0] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (0,1)
+    la_of8x8_blocks[1] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (0,2)
+    la_of8x8_blocks[2] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (0,3)
+    la_of8x8_blocks[3] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (0,4)
+    la_of8x8_blocks[4] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (0,5)
+    la_of8x8_blocks[5] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (0,6)
+    la_of8x8_blocks[6] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (0,7)
+    la_of8x8_blocks[7] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+
+    block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 3);
+    // (1,0)
+    la_of8x8_blocks[8] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (1,1)
+    la_of8x8_blocks[9] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (1,2)
+    la_of8x8_blocks[10] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (1,3)
+    la_of8x8_blocks[11] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (1,4)
+    la_of8x8_blocks[12] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (1,5)
+    la_of8x8_blocks[13] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (1,6)
+    la_of8x8_blocks[14] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (1,7)
+    la_of8x8_blocks[15] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+
+    block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 4);
+    // (2,0)
+    la_of8x8_blocks[16] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (2,1)
+    la_of8x8_blocks[17] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (2,2)
+    la_of8x8_blocks[18] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (2,3)
+    la_of8x8_blocks[19] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (2,4)
+    la_of8x8_blocks[20] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (2,5)
+    la_of8x8_blocks[21] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (2,6)
+    la_of8x8_blocks[22] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (2,7)
+    la_of8x8_blocks[23] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+
+    block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 3) + (input_padded_picture_ptr->stride_y << 4);
+    // (3,0)
+    la_of8x8_blocks[24] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (3,1)
+    la_of8x8_blocks[25] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (3,2)
+    la_of8x8_blocks[26] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (3,3)
+    la_of8x8_blocks[27] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (3,4)
+    la_of8x8_blocks[28] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (3,5)
+    la_of8x8_blocks[29] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (3,6)
+    la_of8x8_blocks[30] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (3,7)
+    la_of8x8_blocks[31] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+
+    block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 5);
+    // (4,0)
+    la_of8x8_blocks[32] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (4,1)
+    la_of8x8_blocks[33] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (4,2)
+    la_of8x8_blocks[34] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (4,3)
+    la_of8x8_blocks[35] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (4,4)
+    la_of8x8_blocks[36] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (4,5)
+    la_of8x8_blocks[37] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (4,6)
+    la_of8x8_blocks[38] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (4,7)
+    la_of8x8_blocks[39] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+
+    block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 3) + (input_padded_picture_ptr->stride_y << 5);
+    // (5,0)
+    la_of8x8_blocks[40] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (5,1)
+    la_of8x8_blocks[41] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (5,2)
+    la_of8x8_blocks[42] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (5,3)
+    la_of8x8_blocks[43] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (5,4)
+    la_of8x8_blocks[44] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (5,5)
+    la_of8x8_blocks[45] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (5,6)
+    la_of8x8_blocks[46] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (5,7)
+    la_of8x8_blocks[47] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+
+    block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 4) + (input_padded_picture_ptr->stride_y << 5);
+    // (6,0)
+    la_of8x8_blocks[48] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (6,1)
+    la_of8x8_blocks[49] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (6,2)
+    la_of8x8_blocks[50] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (6,3)
+    la_of8x8_blocks[51] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (6,4)
+    la_of8x8_blocks[52] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (6,5)
+    la_of8x8_blocks[53] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (6,6)
+    la_of8x8_blocks[54] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (6,7)
+    la_of8x8_blocks[55] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+
+    block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 3) + (input_padded_picture_ptr->stride_y << 4) + (input_padded_picture_ptr->stride_y << 5);
+    // (7,0)
+    la_of8x8_blocks[56] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (7,1)
+    la_of8x8_blocks[57] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (7,2)
+    la_of8x8_blocks[58] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (7,3)
+    la_of8x8_blocks[59] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (7,4)
+    la_of8x8_blocks[60] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (7,5)
+    la_of8x8_blocks[61] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (7,6)
+    la_of8x8_blocks[62] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+    block_index          = block_index + 8;
+
+    // (7,7)
+    la_of8x8_blocks[63] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+                                        input_padded_picture_ptr->stride_y,
+                                        8,
+                                        8);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_0];
+    cm_of8x8_blocks[0] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_1];
+    cm_of8x8_blocks[1] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_2];
+    cm_of8x8_blocks[2] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_3];
+    cm_of8x8_blocks[3] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_4];
+    cm_of8x8_blocks[4] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_5];
+    cm_of8x8_blocks[5] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_6];
+    cm_of8x8_blocks[6] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_7];
+    cm_of8x8_blocks[7] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_8];
+    cm_of8x8_blocks[8] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_9];
+    cm_of8x8_blocks[9] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_10];
+    cm_of8x8_blocks[10] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_11];
+    cm_of8x8_blocks[11] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_12];
+    cm_of8x8_blocks[12] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_13];
+    cm_of8x8_blocks[13] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_14];
+    cm_of8x8_blocks[14] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_15];
+    cm_of8x8_blocks[15] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_16];
+    cm_of8x8_blocks[16] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_17];
+    cm_of8x8_blocks[17] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_18];
+    cm_of8x8_blocks[18] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_19];
+    cm_of8x8_blocks[19] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_20];
+    cm_of8x8_blocks[20] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_21];
+    cm_of8x8_blocks[21] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_22];
+    cm_of8x8_blocks[22] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_23];
+    cm_of8x8_blocks[23] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_24];
+    cm_of8x8_blocks[24] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_25];
+    cm_of8x8_blocks[25] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_26];
+    cm_of8x8_blocks[26] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_27];
+    cm_of8x8_blocks[27] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_28];
+    cm_of8x8_blocks[28] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_29];
+    cm_of8x8_blocks[29] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_30];
+    cm_of8x8_blocks[30] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_31];
+    cm_of8x8_blocks[31] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_32];
+    cm_of8x8_blocks[32] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_33];
+    cm_of8x8_blocks[33] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_34];
+    cm_of8x8_blocks[34] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_35];
+    cm_of8x8_blocks[35] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_36];
+    cm_of8x8_blocks[36] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_37];
+    cm_of8x8_blocks[37] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_38];
+    cm_of8x8_blocks[38] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_39];
+    cm_of8x8_blocks[39] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_40];
+    cm_of8x8_blocks[40] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_41];
+    cm_of8x8_blocks[41] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_42];
+    cm_of8x8_blocks[42] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_43];
+    cm_of8x8_blocks[43] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_44];
+    cm_of8x8_blocks[44] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_45];
+    cm_of8x8_blocks[45] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_46];
+    cm_of8x8_blocks[46] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_47];
+    cm_of8x8_blocks[47] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_48];
+    cm_of8x8_blocks[48] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_49];
+    cm_of8x8_blocks[49] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_50];
+    cm_of8x8_blocks[50] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_51];
+    cm_of8x8_blocks[51] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_52];
+    cm_of8x8_blocks[52] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_53];
+    cm_of8x8_blocks[53] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_54];
+    cm_of8x8_blocks[54] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_55];
+    cm_of8x8_blocks[55] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_56];
+    cm_of8x8_blocks[56] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_57];
+    cm_of8x8_blocks[57] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_58];
+    cm_of8x8_blocks[58] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_59];
+    cm_of8x8_blocks[59] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_60];
+    cm_of8x8_blocks[60] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_61];
+    cm_of8x8_blocks[61] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_62];
+    cm_of8x8_blocks[62] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_63];
+    cm_of8x8_blocks[63] = 1.84 * pow(lc, 1.2) / (lc + 676);
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_0] =
+    (float)(la_of8x8_blocks[0] + cm_of8x8_blocks[0] - 0.3 * MIN(la_of8x8_blocks[0] , cm_of8x8_blocks[0]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_1] =
+    (float)(la_of8x8_blocks[1] + cm_of8x8_blocks[1] - 0.3 * MIN(la_of8x8_blocks[1] , cm_of8x8_blocks[1]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_2] =
+    (float)(la_of8x8_blocks[2] + cm_of8x8_blocks[2] - 0.3 * MIN(la_of8x8_blocks[2] , cm_of8x8_blocks[2]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_3] =
+    (float)(la_of8x8_blocks[3] + cm_of8x8_blocks[3] - 0.3 * MIN(la_of8x8_blocks[3] , cm_of8x8_blocks[3]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_4] =
+    (float)(la_of8x8_blocks[4] + cm_of8x8_blocks[4] - 0.3 * MIN(la_of8x8_blocks[4] , cm_of8x8_blocks[4]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_5] =
+    (float)(la_of8x8_blocks[5] + cm_of8x8_blocks[5] - 0.3 * MIN(la_of8x8_blocks[5] , cm_of8x8_blocks[5]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_6] =
+    (float)(la_of8x8_blocks[6] + cm_of8x8_blocks[6] - 0.3 * MIN(la_of8x8_blocks[6] , cm_of8x8_blocks[6]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_7] =
+    (float)(la_of8x8_blocks[7] + cm_of8x8_blocks[7] - 0.3 * MIN(la_of8x8_blocks[7] , cm_of8x8_blocks[7]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_8] =
+    (float)(la_of8x8_blocks[8] + cm_of8x8_blocks[8] - 0.3 * MIN(la_of8x8_blocks[8] , cm_of8x8_blocks[8]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_9] =
+    (float)(la_of8x8_blocks[9] + cm_of8x8_blocks[9] - 0.3 * MIN(la_of8x8_blocks[9] , cm_of8x8_blocks[9]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_10] =
+    (float)(la_of8x8_blocks[10] + cm_of8x8_blocks[10] - 0.3 * MIN(la_of8x8_blocks[10] , cm_of8x8_blocks[10]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_11] =
+    (float)(la_of8x8_blocks[11] + cm_of8x8_blocks[11] - 0.3 * MIN(la_of8x8_blocks[11] , cm_of8x8_blocks[11]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_12] =
+    (float)(la_of8x8_blocks[12] + cm_of8x8_blocks[12] - 0.3 * MIN(la_of8x8_blocks[12] , cm_of8x8_blocks[12]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_13] =
+    (float)(la_of8x8_blocks[13] + cm_of8x8_blocks[13] - 0.3 * MIN(la_of8x8_blocks[13] , cm_of8x8_blocks[13]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_14] =
+    (float)(la_of8x8_blocks[14] + cm_of8x8_blocks[14] - 0.3 * MIN(la_of8x8_blocks[14] , cm_of8x8_blocks[14]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_15] =
+    (float)(la_of8x8_blocks[15] + cm_of8x8_blocks[15] - 0.3 * MIN(la_of8x8_blocks[15] , cm_of8x8_blocks[15]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_16] =
+    (float)(la_of8x8_blocks[16] + cm_of8x8_blocks[16] - 0.3 * MIN(la_of8x8_blocks[16] , cm_of8x8_blocks[16]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_17] =
+    (float)(la_of8x8_blocks[17] + cm_of8x8_blocks[17] - 0.3 * MIN(la_of8x8_blocks[17] , cm_of8x8_blocks[17]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_18] =
+    (float)(la_of8x8_blocks[18] + cm_of8x8_blocks[18] - 0.3 * MIN(la_of8x8_blocks[18] , cm_of8x8_blocks[18]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_19] =
+    (float)(la_of8x8_blocks[19] + cm_of8x8_blocks[19] - 0.3 * MIN(la_of8x8_blocks[19] , cm_of8x8_blocks[19]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_20] =
+    (float)(la_of8x8_blocks[20] + cm_of8x8_blocks[20] - 0.3 * MIN(la_of8x8_blocks[20] , cm_of8x8_blocks[20]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_21] =
+    (float)(la_of8x8_blocks[21] + cm_of8x8_blocks[21] - 0.3 * MIN(la_of8x8_blocks[21] , cm_of8x8_blocks[21]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_22] =
+    (float)(la_of8x8_blocks[22] + cm_of8x8_blocks[22] - 0.3 * MIN(la_of8x8_blocks[22] , cm_of8x8_blocks[22]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_23] =
+    (float)(la_of8x8_blocks[23] + cm_of8x8_blocks[23] - 0.3 * MIN(la_of8x8_blocks[23] , cm_of8x8_blocks[23]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_24] =
+    (float)(la_of8x8_blocks[24] + cm_of8x8_blocks[24] - 0.3 * MIN(la_of8x8_blocks[24] , cm_of8x8_blocks[24]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_25] =
+    (float)(la_of8x8_blocks[25] + cm_of8x8_blocks[25] - 0.3 * MIN(la_of8x8_blocks[25] , cm_of8x8_blocks[25]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_26] =
+    (float)(la_of8x8_blocks[26] + cm_of8x8_blocks[26] - 0.3 * MIN(la_of8x8_blocks[26] , cm_of8x8_blocks[26]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_27] =
+    (float)(la_of8x8_blocks[27] + cm_of8x8_blocks[27] - 0.3 * MIN(la_of8x8_blocks[27] , cm_of8x8_blocks[27]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_28] =
+    (float)(la_of8x8_blocks[28] + cm_of8x8_blocks[28] - 0.3 * MIN(la_of8x8_blocks[28] , cm_of8x8_blocks[28]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_29] =
+    (float)(la_of8x8_blocks[29] + cm_of8x8_blocks[29] - 0.3 * MIN(la_of8x8_blocks[29] , cm_of8x8_blocks[29]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_30] =
+    (float)(la_of8x8_blocks[30] + cm_of8x8_blocks[30] - 0.3 * MIN(la_of8x8_blocks[30] , cm_of8x8_blocks[30]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_31] =
+    (float)(la_of8x8_blocks[31] + cm_of8x8_blocks[31] - 0.3 * MIN(la_of8x8_blocks[31] , cm_of8x8_blocks[31]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_32] =
+    (float)(la_of8x8_blocks[32] + cm_of8x8_blocks[32] - 0.3 * MIN(la_of8x8_blocks[32] , cm_of8x8_blocks[32]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_33] =
+    (float)(la_of8x8_blocks[33] + cm_of8x8_blocks[33] - 0.3 * MIN(la_of8x8_blocks[33] , cm_of8x8_blocks[33]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_34] =
+    (float)(la_of8x8_blocks[34] + cm_of8x8_blocks[34] - 0.3 * MIN(la_of8x8_blocks[34] , cm_of8x8_blocks[34]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_35] =
+    (float)(la_of8x8_blocks[35] + cm_of8x8_blocks[35] - 0.3 * MIN(la_of8x8_blocks[35] , cm_of8x8_blocks[35]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_36] =
+    (float)(la_of8x8_blocks[36] + cm_of8x8_blocks[36] - 0.3 * MIN(la_of8x8_blocks[36] , cm_of8x8_blocks[36]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_37] =
+    (float)(la_of8x8_blocks[37] + cm_of8x8_blocks[37] - 0.3 * MIN(la_of8x8_blocks[37] , cm_of8x8_blocks[37]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_38] =
+    (float)(la_of8x8_blocks[38] + cm_of8x8_blocks[38] - 0.3 * MIN(la_of8x8_blocks[38] , cm_of8x8_blocks[38]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_39] =
+    (float)(la_of8x8_blocks[39] + cm_of8x8_blocks[39] - 0.3 * MIN(la_of8x8_blocks[39] , cm_of8x8_blocks[39]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_40] =
+    (float)(la_of8x8_blocks[40] + cm_of8x8_blocks[40] - 0.3 * MIN(la_of8x8_blocks[40] , cm_of8x8_blocks[40]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_41] =
+    (float)(la_of8x8_blocks[41] + cm_of8x8_blocks[41] - 0.3 * MIN(la_of8x8_blocks[41] , cm_of8x8_blocks[41]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_42] =
+    (float)(la_of8x8_blocks[42] + cm_of8x8_blocks[42] - 0.3 * MIN(la_of8x8_blocks[42] , cm_of8x8_blocks[42]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_43] =
+    (float)(la_of8x8_blocks[43] + cm_of8x8_blocks[43] - 0.3 * MIN(la_of8x8_blocks[43] , cm_of8x8_blocks[43]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_44] =
+    (float)(la_of8x8_blocks[44] + cm_of8x8_blocks[44] - 0.3 * MIN(la_of8x8_blocks[44] , cm_of8x8_blocks[44]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_45] =
+    (float)(la_of8x8_blocks[45] + cm_of8x8_blocks[45] - 0.3 * MIN(la_of8x8_blocks[45] , cm_of8x8_blocks[45]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_46] =
+    (float)(la_of8x8_blocks[46] + cm_of8x8_blocks[46] - 0.3 * MIN(la_of8x8_blocks[46] , cm_of8x8_blocks[46]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_47] =
+    (float)(la_of8x8_blocks[47] + cm_of8x8_blocks[47] - 0.3 * MIN(la_of8x8_blocks[47] , cm_of8x8_blocks[47]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_48] =
+    (float)(la_of8x8_blocks[48] + cm_of8x8_blocks[48] - 0.3 * MIN(la_of8x8_blocks[48] , cm_of8x8_blocks[48]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_49] =
+    (float)(la_of8x8_blocks[49] + cm_of8x8_blocks[49] - 0.3 * MIN(la_of8x8_blocks[49] , cm_of8x8_blocks[49]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_50] =
+    (float)(la_of8x8_blocks[50] + cm_of8x8_blocks[50] - 0.3 * MIN(la_of8x8_blocks[50] , cm_of8x8_blocks[50]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_51] =
+    (float)(la_of8x8_blocks[51] + cm_of8x8_blocks[51] - 0.3 * MIN(la_of8x8_blocks[51] , cm_of8x8_blocks[51]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_52] =
+    (float)(la_of8x8_blocks[52] + cm_of8x8_blocks[52] - 0.3 * MIN(la_of8x8_blocks[52] , cm_of8x8_blocks[52]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_53] =
+    (float)(la_of8x8_blocks[53] + cm_of8x8_blocks[53] - 0.3 * MIN(la_of8x8_blocks[53] , cm_of8x8_blocks[53]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_54] =
+    (float)(la_of8x8_blocks[54] + cm_of8x8_blocks[54] - 0.3 * MIN(la_of8x8_blocks[54] , cm_of8x8_blocks[54]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_55] =
+    (float)(la_of8x8_blocks[55] + cm_of8x8_blocks[55] - 0.3 * MIN(la_of8x8_blocks[55] , cm_of8x8_blocks[55]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_56] =
+    (float)(la_of8x8_blocks[56] + cm_of8x8_blocks[56] - 0.3 * MIN(la_of8x8_blocks[56] , cm_of8x8_blocks[56]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_57] =
+    (float)(la_of8x8_blocks[57] + cm_of8x8_blocks[57] - 0.3 * MIN(la_of8x8_blocks[57] , cm_of8x8_blocks[57]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_58] =
+    (float)(la_of8x8_blocks[58] + cm_of8x8_blocks[58] - 0.3 * MIN(la_of8x8_blocks[58] , cm_of8x8_blocks[58]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_59] =
+    (float)(la_of8x8_blocks[59] + cm_of8x8_blocks[59] - 0.3 * MIN(la_of8x8_blocks[59] , cm_of8x8_blocks[59]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_60] =
+    (float)(la_of8x8_blocks[60] + cm_of8x8_blocks[60] - 0.3 * MIN(la_of8x8_blocks[60] , cm_of8x8_blocks[60]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_61] =
+    (float)(la_of8x8_blocks[61] + cm_of8x8_blocks[61] - 0.3 * MIN(la_of8x8_blocks[61] , cm_of8x8_blocks[61]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_62] =
+    (float)(la_of8x8_blocks[62] + cm_of8x8_blocks[62] - 0.3 * MIN(la_of8x8_blocks[62] , cm_of8x8_blocks[62]));
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_63] =
+    (float)(la_of8x8_blocks[63] + cm_of8x8_blocks[63] - 0.3 * MIN(la_of8x8_blocks[63] , cm_of8x8_blocks[63]));
+
+
+
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_0] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_0] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_1] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_8] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_9]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_1] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_2] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_3] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_10] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_11]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_2] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_4] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_5] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_12] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_13]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_3] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_6] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_7] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_14] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_15]) / 4;
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_4] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_16] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_17] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_24] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_25]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_5] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_18] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_19] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_26] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_27]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_6] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_20] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_21] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_28] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_29]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_7] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_22] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_23] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_30] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_31]) / 4;
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_8] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_32] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_33] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_40] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_41]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_9] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_34] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_35] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_42] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_43]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_10] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_36] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_37] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_44] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_45]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_11] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_38] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_39] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_46] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_47]) / 4;
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_12] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_48] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_49] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_56] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_57]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_13] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_50] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_51] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_58] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_59]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_14] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_52] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_53] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_60] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_61]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_15] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_54] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_55] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_62] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_63]) / 4;
+
+    // 32x32
+
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_0] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_0] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_1] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_4] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_5]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_1] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_2] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_3] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_6] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_7]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_2] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_8] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_9] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_12] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_13]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_3] =
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_10] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_11] +
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_14] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_15]) / 4;
+
+    // 64x64
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_64x64] = (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_0] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_1] +
+                            pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_2] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_3]) / 4;
+
+
+
+    // 8x8 jnds
+    // pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_0] =
+    //     (float)(la_of8x8_blocks[0] + cm_of8x8_blocks[0] - 0.3 * MIN(la_of8x8_blocks[0] , cm_of8x8_blocks[0]));
+
+}
+
 static int32_t apply_denoise_2d(SequenceControlSet *scs_ptr, PictureParentControlSet *pcs_ptr,
                                 EbPictureBufferDesc *inputPicturePointer) {
     if (eb_aom_denoise_and_model_run(pcs_ptr->denoise_and_model,
@@ -2884,6 +3851,8 @@ void compute_picture_spatial_statistics(SequenceControlSet *     scs_ptr,
 
     // Variance
     pic_tot_variance = 0;
+    float jnd_min = 999, jnd_max = 0, pic_tot_jnd = 0;
+    uint32_t jnd_cnt0=0, jnd_cnt1 = 0, jnd_cnt2 = 0, jnd_cnt3 = 0;
 
     for (sb_index = 0; sb_index < pcs_ptr->sb_total_count; ++sb_index) {
         SbParams *sb_params = &pcs_ptr->sb_params_array[sb_index];
@@ -2904,6 +3873,21 @@ void compute_picture_spatial_statistics(SequenceControlSet *     scs_ptr,
         compute_block_mean_compute_variance(
             scs_ptr, pcs_ptr, input_padded_picture_ptr, sb_index, input_luma_origin_index);
 
+
+        compute_block_jnd(pcs_ptr, input_padded_picture_ptr, sb_index, input_luma_origin_index);
+
+        for (int i = 0; i < 85; ++i) {
+            jnd_min = MIN(jnd_min, pcs_ptr->jnd[sb_index][i]);
+            jnd_max = MAX(jnd_max, pcs_ptr->jnd[sb_index][i]);
+            if (pcs_ptr->jnd[sb_index][i] <= 2.485) ++jnd_cnt0;
+            else if (pcs_ptr->jnd[sb_index][i] <= 4.97) ++jnd_cnt1;
+            else if (pcs_ptr->jnd[sb_index][i] >= 9.94) ++jnd_cnt3;
+            else ++jnd_cnt2;
+        }
+
+        pic_tot_jnd += pcs_ptr->jnd[sb_index][0];
+
+
         if (sb_params->is_complete_sb) {
             compute_chroma_block_mean(scs_ptr,
                                       pcs_ptr,
@@ -2918,6 +3902,9 @@ void compute_picture_spatial_statistics(SequenceControlSet *     scs_ptr,
         pic_tot_variance += (pcs_ptr->variance[sb_index][RASTER_SCAN_CU_INDEX_64x64]);
     }
 
+    printf("jnd_avg = %.2f, jnd_max = %.2f, jnd_min = %.3f\n", pic_tot_jnd / sb_total_count, jnd_max, jnd_min);
+    printf("jnd_cnt0 = %d, jnd_cnt1 = %d, jnd_cnt2 = %d, jnd_cnt3 = %d\n", jnd_cnt0, jnd_cnt1, jnd_cnt2, jnd_cnt3);
+    pcs_ptr->pic_avg_jnd = (float)(pic_tot_jnd / sb_total_count);
     pcs_ptr->pic_avg_variance = (uint16_t)(pic_tot_variance / sb_total_count);
 
     return;
@@ -3110,25 +4097,19 @@ void gathering_picture_statistics(SequenceControlSet *scs_ptr, PictureParentCont
                                       sum_avg_intensity_ttl_regions_cb,
                                       sum_avg_intensity_ttl_regions_cr);
 
-    compute_picture_spatial_statistics(
-        scs_ptr, pcs_ptr, input_picture_ptr, input_padded_picture_ptr, sb_total_count);
-
     uint64_t start_stime, start_utime;
     uint64_t end_stime, end_utime;
     double duration;
     eb_start_time(&start_stime, &start_utime);
-    compute_jnd_statistics(pcs_ptr, input_picture_ptr);
-    eb_finish_time(&end_stime, &end_utime);
-    eb_compute_overall_elapsed_time_ms(start_stime, start_utime,
-                                        end_stime, end_utime, &duration);
-    printf("jnd time = %.2f\n", duration);
+    compute_picture_spatial_statistics(
+        scs_ptr, pcs_ptr, input_picture_ptr, input_padded_picture_ptr, sb_total_count);
 
 
-    eb_start_time(&start_stime, &start_utime);
-    double j;
-
-    for (int i = 0; i < 1920*1080; ++i)
-        j = sqrt(input_picture_ptr->buffer_y[i]/127.0);
+    // uint64_t start_stime, start_utime;
+    // uint64_t end_stime, end_utime;
+    // double duration;
+    // eb_start_time(&start_stime, &start_utime);
+    // compute_jnd_statistics(pcs_ptr, input_picture_ptr);
     eb_finish_time(&end_stime, &end_utime);
     eb_compute_overall_elapsed_time_ms(start_stime, start_utime,
                                         end_stime, end_utime, &duration);
