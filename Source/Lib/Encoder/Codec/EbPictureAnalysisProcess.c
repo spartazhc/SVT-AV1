@@ -377,14 +377,13 @@ uint8_t bg_kernel[64] = {1, 1, 1, 2, 2, 1, 1, 1,
  * compute_la
  *   returns the luma adaptation of a block
  *******************************************/
-float compute_la_c(uint8_t *input_samples, /**< input parameter, input samples Ptr */
+uint32_t compute_bg_c(uint8_t *input_samples, /**< input parameter, input samples Ptr */
                         uint32_t input_stride, /**< input parameter, input stride */
                         uint32_t input_area_width, /**< input parameter, input area width */
                         uint32_t input_area_height) /**< input parameter, input area height */
 {
     uint32_t hi, vi, k = 0;
-    uint64_t bg = 0;
-    float la;
+    uint32_t bg = 0;
 
     for (vi = 0; vi < input_area_height; vi++) {
         for (hi = 0; hi < input_area_width; hi++) {
@@ -393,13 +392,7 @@ float compute_la_c(uint8_t *input_samples, /**< input parameter, input samples P
         input_samples += input_stride;
     }
 
-    bg /= 128;
-    if (bg <= 127)
-        la = (1 - sqrt(bg / 127.0)) * 17;
-    else
-        la = (bg - 127) * 3 / 128.0 + 3;
-
-    return la;
+    return bg >> 7;
 }
 
 void compute_interm_var_four8x8_c(uint8_t *input_samples, uint16_t input_stride,
@@ -2631,7 +2624,7 @@ EbErrorType compute_block_jnd(
 {
     EbErrorType return_error = EB_ErrorNone;
 
-    uint32_t block_index;
+    uint32_t block_index, bg;
     float cm, la;
     uint16_t lc, index = 0;
 
@@ -2640,451 +2633,579 @@ EbErrorType compute_block_jnd(
 
     block_index = input_luma_origin_index;
     // (0,0)
-    la_of8x8_blocks[0] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[0] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[0] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (0,1)
-    la_of8x8_blocks[1] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[1] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[1] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (0,2)
-    la_of8x8_blocks[2] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[2] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[2] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (0,3)
-    la_of8x8_blocks[3] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[3] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[3] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (0,4)
-    la_of8x8_blocks[4] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[4] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[4] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (0,5)
-    la_of8x8_blocks[5] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[5] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[5] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (0,6)
-    la_of8x8_blocks[6] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[6] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[6] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (0,7)
-    la_of8x8_blocks[7] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[7] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[7] = (bg - 127) * 3 / 128.0 + 3;
 
     block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 3);
     // (1,0)
-    la_of8x8_blocks[8] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[8] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[8] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (1,1)
-    la_of8x8_blocks[9] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[9] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[9] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (1,2)
-    la_of8x8_blocks[10] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[10] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[10] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (1,3)
-    la_of8x8_blocks[11] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[11] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[11] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (1,4)
-    la_of8x8_blocks[12] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[12] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[12] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (1,5)
-    la_of8x8_blocks[13] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[13] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[13] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (1,6)
-    la_of8x8_blocks[14] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[14] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[14] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (1,7)
-    la_of8x8_blocks[15] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[15] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[15] = (bg - 127) * 3 / 128.0 + 3;
 
     block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 4);
     // (2,0)
-    la_of8x8_blocks[16] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[16] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[16] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (2,1)
-    la_of8x8_blocks[17] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[17] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[17] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (2,2)
-    la_of8x8_blocks[18] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[18] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[18] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (2,3)
-    la_of8x8_blocks[19] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[19] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[19] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (2,4)
-    la_of8x8_blocks[20] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[20] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[20] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (2,5)
-    la_of8x8_blocks[21] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[21] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[21] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (2,6)
-    la_of8x8_blocks[22] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[22] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[22] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (2,7)
-    la_of8x8_blocks[23] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[23] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[23] = (bg - 127) * 3 / 128.0 + 3;
 
     block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 3) + (input_padded_picture_ptr->stride_y << 4);
     // (3,0)
-    la_of8x8_blocks[24] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[24] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[24] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (3,1)
-    la_of8x8_blocks[25] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[25] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[25] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (3,2)
-    la_of8x8_blocks[26] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[26] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[26] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (3,3)
-    la_of8x8_blocks[27] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[27] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[27] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (3,4)
-    la_of8x8_blocks[28] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[28] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[28] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (3,5)
-    la_of8x8_blocks[29] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[29] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[29] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (3,6)
-    la_of8x8_blocks[30] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[30] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[30] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (3,7)
-    la_of8x8_blocks[31] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[31] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[31] = (bg - 127) * 3 / 128.0 + 3;
 
     block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 5);
     // (4,0)
-    la_of8x8_blocks[32] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[32] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[32] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (4,1)
-    la_of8x8_blocks[33] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[33] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[33] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (4,2)
-    la_of8x8_blocks[34] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[34] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[34] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (4,3)
-    la_of8x8_blocks[35] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[35] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[35] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (4,4)
-    la_of8x8_blocks[36] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[36] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[36] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (4,5)
-    la_of8x8_blocks[37] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[37] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[37] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (4,6)
-    la_of8x8_blocks[38] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[38] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[38] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (4,7)
-    la_of8x8_blocks[39] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[39] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[39] = (bg - 127) * 3 / 128.0 + 3;
 
     block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 3) + (input_padded_picture_ptr->stride_y << 5);
     // (5,0)
-    la_of8x8_blocks[40] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[40] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[40] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (5,1)
-    la_of8x8_blocks[41] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[41] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[41] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (5,2)
-    la_of8x8_blocks[42] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[42] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[42] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (5,3)
-    la_of8x8_blocks[43] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[43] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[43] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (5,4)
-    la_of8x8_blocks[44] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[44] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[44] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (5,5)
-    la_of8x8_blocks[45] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[45] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[45] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (5,6)
-    la_of8x8_blocks[46] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[46] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[46] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (5,7)
-    la_of8x8_blocks[47] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[47] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[47] = (bg - 127) * 3 / 128.0 + 3;
 
     block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 4) + (input_padded_picture_ptr->stride_y << 5);
     // (6,0)
-    la_of8x8_blocks[48] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[48] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[48] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (6,1)
-    la_of8x8_blocks[49] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[49] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[49] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (6,2)
-    la_of8x8_blocks[50] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[50] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[50] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (6,3)
-    la_of8x8_blocks[51] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[51] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[51] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (6,4)
-    la_of8x8_blocks[52] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[52] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[52] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (6,5)
-    la_of8x8_blocks[53] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[53] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[53] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (6,6)
-    la_of8x8_blocks[54] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[54] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[54] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (6,7)
-    la_of8x8_blocks[55] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[55] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[55] = (bg - 127) * 3 / 128.0 + 3;
 
     block_index = input_luma_origin_index + (input_padded_picture_ptr->stride_y << 3) + (input_padded_picture_ptr->stride_y << 4) + (input_padded_picture_ptr->stride_y << 5);
     // (7,0)
-    la_of8x8_blocks[56] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[56] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[56] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (7,1)
-    la_of8x8_blocks[57] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[57] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[57] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (7,2)
-    la_of8x8_blocks[58] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[58] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[58] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (7,3)
-    la_of8x8_blocks[59] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[59] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[59] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (7,4)
-    la_of8x8_blocks[60] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[60] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[60] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (7,5)
-    la_of8x8_blocks[61] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[61] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[61] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (7,6)
-    la_of8x8_blocks[62] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[62] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[62] = (bg - 127) * 3 / 128.0 + 3;
     block_index          = block_index + 8;
 
     // (7,7)
-    la_of8x8_blocks[63] = compute_la_c(&(input_padded_picture_ptr->buffer_y[block_index]),
+    bg = compute_bg_8x8(&(input_padded_picture_ptr->buffer_y[block_index]),
                                         input_padded_picture_ptr->stride_y,
                                         8,
                                         8);
+    if (bg <= 127) la_of8x8_blocks[63] = (1 - sqrt(bg / 127.0)) * 17;
+    else           la_of8x8_blocks[63] = (bg - 127) * 3 / 128.0 + 3;
 
     lc = pcs_ptr->variance[sb_index][ME_TIER_ZERO_PU_8x8_0];
     cm_of8x8_blocks[0] = 1.84 * pow(lc, 1.2) / (lc + 676);
@@ -3469,9 +3590,6 @@ EbErrorType compute_block_jnd(
 
     pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_63] =
     (float)(la_of8x8_blocks[63] + cm_of8x8_blocks[63] - 0.3 * MIN(la_of8x8_blocks[63] , cm_of8x8_blocks[63]));
-
-
-
 
     pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_0] =
         (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_0] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_1] +

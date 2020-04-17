@@ -1176,6 +1176,12 @@ extern "C" {
         uint32_t input_stride, // input parameter, input stride
         uint32_t input_area_width, // input parameter, input area width
         uint32_t input_area_height);
+    RTCD_EXTERN uint32_t(*compute_bg_8x8)(uint8_t *input_samples, uint32_t input_stride, uint32_t input_area_width, uint32_t input_area_height);
+    uint32_t compute_bg8x8_sse4_intrin(
+        uint8_t *input_samples, // input parameter, input samples Ptr
+        uint32_t input_stride, // input parameter, input stride
+        uint32_t input_area_width, // input parameter, input area width
+        uint32_t input_area_height); // input parameter, input area height
     RTCD_EXTERN uint64_t(*compute_mean_square_values_8x8)(uint8_t *input_samples, uint32_t input_stride, uint32_t input_area_width, uint32_t input_area_height);
     uint64_t compute_mean_of_squared_values8x8_sse2_intrin(
         uint8_t* input_samples, // input parameter, input samples Ptr
