@@ -561,7 +561,6 @@ void *entropy_coding_kernel(void *input_ptr) {
 #if TILES_PARALLEL
         EB_GET_FULL_OBJECT(context_ptr->enc_dec_input_fifo_ptr, &rest_results_wrapper_ptr);
 
-        eb_start_time(&start_stime, &start_utime);
         rest_results_ptr = (RestResults *)rest_results_wrapper_ptr->object_ptr;
         pcs_ptr          = (PictureControlSet *)rest_results_ptr->pcs_wrapper_ptr->object_ptr;
 #else
@@ -601,7 +600,7 @@ void *entropy_coding_kernel(void *input_ptr) {
                                               tile_idx,
                                               &initial_process_call) == EB_TRUE) {
                 uint32_t row_total_bits = 0;
-
+                eb_start_time(&start_stime, &start_utime);
                 if (y_sb_index == 0) {
                     eb_block_on_mutex(pcs_ptr->entropy_coding_pic_mutex);
                     if (pcs_ptr->entropy_coding_pic_reset_flag) {

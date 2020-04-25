@@ -2864,14 +2864,14 @@ void *enc_dec_kernel(void *input_ptr) {
 
     segment_index = 0;
 
-    uint64_t    start_stime;
-    uint64_t    start_utime;
+    uint64_t    start_stime, start_utime;
+    uint64_t    start_stime_seg, start_utime_seg;
 
     for (;;) {
         // Get Mode Decision Results
         EB_GET_FULL_OBJECT(context_ptr->mode_decision_input_fifo_ptr, &enc_dec_tasks_wrapper_ptr);
 
-        eb_start_time(&start_stime, &start_utime);
+        // eb_start_time(&start_stime, &start_utime);
         enc_dec_tasks_ptr = (EncDecTasks *)enc_dec_tasks_wrapper_ptr->object_ptr;
         pcs_ptr           = (PictureControlSet *)enc_dec_tasks_ptr->pcs_wrapper_ptr->object_ptr;
         scs_ptr           = (SequenceControlSet *)pcs_ptr->scs_wrapper_ptr->object_ptr;
@@ -2906,6 +2906,7 @@ void *enc_dec_kernel(void *input_ptr) {
                                        enc_dec_tasks_ptr,
                                        context_ptr->enc_dec_feedback_fifo_ptr,
                                        start_stime, start_utime) == EB_TRUE) {
+            eb_start_time(&start_stime_seg, &start_utime_seg);
             x_sb_start_index = segments_ptr->x_start_array[segment_index];
             y_sb_start_index = segments_ptr->y_start_array[segment_index];
 #if TILES_PARALLEL
@@ -3240,6 +3241,8 @@ void *enc_dec_kernel(void *input_ptr) {
                 }
                 x_sb_start_index = (x_sb_start_index > 0) ? x_sb_start_index - 1 : 0;
             }
+            eb_add_time_entry(EB_ENCDEC, EB_NOTASK, EB_NOTASK, pcs_ptr->picture_number, segment_index, -1,
+                            start_stime_seg, start_utime_seg);
         }
 
         eb_block_on_mutex(pcs_ptr->intra_mutex);
@@ -3247,8 +3250,8 @@ void *enc_dec_kernel(void *input_ptr) {
 #if TILES_PARALLEL
         pcs_ptr->enc_dec_coded_sb_count += (uint32_t)context_ptr->coded_sb_count;
         last_sb_flag = (pcs_ptr->sb_total_count_pix == pcs_ptr->enc_dec_coded_sb_count);
-        eb_add_time_entry(EB_ENCDEC, EB_NOTASK, EB_NOTASK, pcs_ptr->picture_number, pcs_ptr->enc_dec_coded_sb_count, -1,
-                            start_stime, start_utime);
+        // eb_add_time_entry(EB_ENCDEC, EB_NOTASK, EB_NOTASK, pcs_ptr->picture_number, pcs_ptr->enc_dec_coded_sb_count, -1,
+        //                     start_stime, start_utime);
 #endif
         eb_release_mutex(pcs_ptr->intra_mutex);
 
@@ -3291,8 +3294,8 @@ void *enc_dec_kernel(void *input_ptr) {
             enc_dec_results_ptr->completed_sb_row_count =
                 ((pcs_ptr->parent_pcs_ptr->aligned_height + scs_ptr->sb_size_pix - 1) >> sb_size_log2);
             // Post EncDec Results
-            eb_add_time_entry(EB_ENCDEC, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, -1, -1,
-                            start_stime, start_utime);
+            // eb_add_time_entry(EB_ENCDEC, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, -1, -1,
+            //                 start_stime, start_utime);
             eb_post_full_object(enc_dec_results_wrapper_ptr);
         }
         // Release Mode Decision Results
