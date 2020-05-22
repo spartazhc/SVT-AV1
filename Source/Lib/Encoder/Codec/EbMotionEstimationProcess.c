@@ -1065,7 +1065,7 @@ void *motion_estimation_kernel(void *input_ptr) {
             eb_release_object(in_results_wrapper_ptr);
 
             // Post the Full Results Object
-            if (segment_index == 0 || segment_index == 59)
+            // if (segment_index == 0 || segment_index == 59)
                 eb_add_time_entry(EB_ME, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, in_results_ptr->segment_index, -1,
                                 start_stime, start_utime);
             eb_post_full_object(out_results_wrapper_ptr);
@@ -1080,7 +1080,7 @@ void *motion_estimation_kernel(void *input_ptr) {
                 pcs_ptr->temp_filt_pcs_list, pcs_ptr, context_ptr, in_results_ptr->segment_index);
 
             // Release the Input Results
-            if (in_results_ptr->segment_index == 0 || in_results_ptr->segment_index == 59)
+            // if (in_results_ptr->segment_index == 0 || in_results_ptr->segment_index == 59)
                 eb_add_time_entry(EB_ME, EB_TASK1, EB_NOTASK, pcs_ptr->picture_number, in_results_ptr->segment_index, -1,
                                 start_stime, start_utime);
             eb_release_object(in_results_wrapper_ptr);

@@ -5271,7 +5271,7 @@ void* picture_decision_kernel(void *input_ptr)
                                         out_results_ptr->pcs_wrapper_ptr = encode_context_ptr->pre_assignment_buffer[out_stride_diff64];
                                         out_results_ptr->segment_index = seg_idx;
                                         out_results_ptr->task_type = 1;
-                                        if (seg_idx == 0 || seg_idx == pcs_ptr->tf_segments_total_count - 1)
+                                        // if (seg_idx == 0 || seg_idx == pcs_ptr->tf_segments_total_count - 1)
                                             eb_add_time_entry(EB_PD, EB_TASK0, EB_TASK1, pcs_ptr->picture_number, seg_idx, -1,
                                                         start_stime, start_utime);
                                         eb_post_full_object(out_results_wrapper_ptr);
@@ -5461,7 +5461,7 @@ void* picture_decision_kernel(void *input_ptr)
                                     out_results_ptr->segment_index = segment_index;
                                     out_results_ptr->task_type = 0;
                                     // Post the Full Results Object
-                                    if (segment_index == 0 || segment_index == 59)
+                                    // if (segment_index == 0 || segment_index == 59)
                                         eb_add_time_entry(EB_PD, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, segment_index, -1,
                                                     start_stime, start_utime);
                                     eb_post_full_object(out_results_wrapper_ptr);

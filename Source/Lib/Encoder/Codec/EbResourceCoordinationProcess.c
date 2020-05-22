@@ -1114,7 +1114,7 @@ void *resource_coordination_kernel(void *input_ptr) {
             }
             prev_pcs_wrapper_ptr = pcs_wrapper_ptr;
 #else
-            if (pcs_ptr->picture_number == 60)
+            if (pcs_ptr->picture_number >= 59)
                 ((PictureParentControlSet *)pcs_wrapper_ptr->object_ptr)->end_of_sequence_flag = EB_TRUE;
             eb_get_empty_object(context_ptr->resource_coordination_results_output_fifo_ptr,
                                     &output_wrapper_ptr);
