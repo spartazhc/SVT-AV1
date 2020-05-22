@@ -247,7 +247,7 @@ uint8_t  circ_inc(uint8_t max, uint8_t off, uint8_t input)
                                                              (((int32_t) (base)) + ((int32_t) (offset)) < 0)                           ? ((base) + (offset) + (1 << (bits))) : \
                                                                                                                                        */((base) + (offset)))
 
-#define FUTURE_WINDOW_WIDTH                 6
+#define FUTURE_WINDOW_WIDTH                 0
 #define FLASH_TH                            5
 #define FADE_TH                             3
 #define SCENE_TH                            3000
@@ -4479,7 +4479,8 @@ void* picture_decision_kernel(void *input_ptr)
         queue_entry_ptr = encode_context_ptr->picture_decision_reorder_queue[encode_context_ptr->picture_decision_reorder_queue_head_index];
 
         while (queue_entry_ptr->parent_pcs_wrapper_ptr != EB_NULL) {
-            if (((PictureParentControlSet *)(queue_entry_ptr->parent_pcs_wrapper_ptr->object_ptr))->end_of_sequence_flag == EB_TRUE) {
+            if (((PictureParentControlSet *)(queue_entry_ptr->parent_pcs_wrapper_ptr->object_ptr))->end_of_sequence_flag == EB_TRUE ||
+                scs_ptr->static_config.scene_change_detection == 0) {
                 frame_passthrough = EB_TRUE;
             }
             else
@@ -4487,7 +4488,8 @@ void* picture_decision_kernel(void *input_ptr)
             window_avail = EB_TRUE;
             previous_entry_index = QUEUE_GET_PREVIOUS_SPOT(encode_context_ptr->picture_decision_reorder_queue_head_index);
 
-            parent_pcs_window[0] = parent_pcs_window[1] = parent_pcs_window[2] = parent_pcs_window[3] = parent_pcs_window[4] = parent_pcs_window[5] = NULL;
+            parent_pcs_window[0] = parent_pcs_window[1] = NULL;
+            // parent_pcs_window[0] = parent_pcs_window[1] = parent_pcs_window[2] = parent_pcs_window[3] = parent_pcs_window[4] = parent_pcs_window[5] = NULL;
             //for poc 0, ignore previous frame check
             if (queue_entry_ptr->picture_number > 0 && encode_context_ptr->picture_decision_reorder_queue[previous_entry_index]->parent_pcs_wrapper_ptr == NULL)
                 window_avail = EB_FALSE;
