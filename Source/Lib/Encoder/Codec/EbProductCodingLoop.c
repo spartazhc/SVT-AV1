@@ -7023,13 +7023,14 @@ void interintra_class_pruning_3(ModeDecisionContext *context_ptr, uint64_t best_
         context_ptr->md_stage_3_total_count += context_ptr->md_stage_3_count[cand_class_it];
     }
 }
-float get_jnd_index(PictureControlSet *pcs_ptr, ModeDecisionContext *context_ptr) {
-    uint8_t blk_idx = -1;
-    const uint8_t origin_x = context_ptr->blk_geom->origin_x;
-    const uint8_t origin_y = context_ptr->blk_geom->origin_y;
-    if (context_ptr->blk_geom->shape != PART_N) return -1;
 
-    switch (context_ptr->blk_geom->bsize) {
+float get_jnd_index(PictureControlSet *pcs_ptr, const BlockGeom *blk_geom, uint32_t sb_index) {
+    uint8_t blk_idx = -1;
+    const uint8_t origin_x = blk_geom->origin_x;
+    const uint8_t origin_y = blk_geom->origin_y;
+    if (blk_geom->shape != PART_N) return -1;
+
+    switch (blk_geom->bsize) {
     case BLOCK_64X64: blk_idx = 0; break;
     case BLOCK_32X32: blk_idx =  1 + origin_x / 32 + origin_y / 32 * 2; break;
     case BLOCK_16X16: blk_idx =  5 + origin_x / 16 + origin_y / 16 * 4; break;
@@ -7039,10 +7040,11 @@ float get_jnd_index(PictureControlSet *pcs_ptr, ModeDecisionContext *context_ptr
         SVT_LOG("error: JND index error!\n");
         break;
     }
-    return pcs_ptr->parent_pcs_ptr->jnd[context_ptr->sb_index][blk_idx];
+    return pcs_ptr->parent_pcs_ptr->jnd[sb_index][blk_idx];
 }
+
 void adjust_md_stage_count_jnd(PictureControlSet *pcs_ptr, ModeDecisionContext *context_ptr) {
-    float jnd = get_jnd_index(pcs_ptr, context_ptr);
+    float jnd = get_jnd_index(pcs_ptr, context_ptr->blk_geom, context_ptr->sb_index);
     if (jnd <= pcs_ptr->parent_pcs_ptr->pic_avg_jnd) {
         context_ptr->md_stage_1_count[0] = 2;
     }
@@ -7074,10 +7076,10 @@ void md_encode_block(PictureControlSet *pcs_ptr, ModeDecisionContext *context_pt
     BlkStruct *blk_ptr        = context_ptr->blk_ptr;
     candidate_buffer_ptr_array = &(candidate_buffer_ptr_array_base[0]);
 
-    static FILE *md_trace = 0;
-    if (md_trace == 0) {
-       md_trace = fopen("/tmp/md-trace.txt","w");
-    }
+    // static FILE *md_trace = 0;
+    // if (md_trace == 0) {
+    //    md_trace = fopen("/tmp/md-trace.txt","w");
+    // }
 #if COMP_SIMILAR
     signal_derivation_block(
         pcs_ptr,
@@ -7215,9 +7217,10 @@ void md_encode_block(PictureControlSet *pcs_ptr, ModeDecisionContext *context_pt
     //a bypass mechanism should be added to skip one or all of the intermediate stages, in a way to to be able to fall back to org design (FastLoop->FullLoop)
     set_md_stage_counts(pcs_ptr, context_ptr, fast_candidate_total_count);
 
+#ifdef ENABLE_JND
     if (pcs_ptr->slice_type == I_SLICE)
         adjust_md_stage_count_jnd(pcs_ptr, context_ptr);
-
+#endif
     CandClass cand_class_it;
     uint32_t  buffer_start_idx = 0;
     uint32_t  buffer_count_for_curr_class;
@@ -7438,7 +7441,7 @@ void md_encode_block(PictureControlSet *pcs_ptr, ModeDecisionContext *context_pt
             break;
         }
     }
-    fprintf(md_trace, "best index: %d / 7, jnd: %.2f\n", index, get_jnd_index(pcs_ptr, context_ptr));
+    // fprintf(md_trace, "best index: %d / 7, jnd: %.2f\n", index, get_jnd_index(pcs_ptr, context_ptr->blk_geom, context_ptr->sb_index));
 
     bestcandidate_buffers[0] = candidate_buffer;
     uint8_t sq_index         = LOG2F(context_ptr->blk_geom->sq_size) - 2;
@@ -7916,7 +7919,11 @@ EB_EXTERN EbErrorType mode_decision_sb(SequenceControlSet *scs_ptr, PictureContr
     EbErrorType return_error = EB_ErrorNone;
 
     //printf("sb_origin_x = %d, sb_origin_y = %d\n", sb_origin_x, sb_origin_y);
-
+#ifdef ENABLE_JND
+    const float th_64[4] = {0.09, 0.1, 0.11, 0.13};
+    const float th_32[4] = {0.3, 0.35, 0.4, 0.45};
+    const float th_16[4] = {0.4, 0.45, 0.5, 0.55};
+#endif
     uint32_t                     blk_index;
     ModeDecisionCandidateBuffer *bestcandidate_buffers[5];
     // Pre Intra Search
@@ -8102,17 +8109,29 @@ EB_EXTERN EbErrorType mode_decision_sb(SequenceControlSet *scs_ptr, PictureContr
     uint64_t v_cost;
 #endif
 
-    static FILE *jnd_trace = 0;
-    static int jnd_trace_flag = 0;
+    // static FILE *jnd_trace = 0;
+    // static int jnd_trace_flag = 0;
 
-    if(jnd_trace == 0) {
-       jnd_trace = fopen("/tmp/jnd-table.txt","w");
-    }
+    // if(jnd_trace == 0) {
+    //    jnd_trace = fopen("/tmp/jnd-table.txt","w");
+    // }
 
+    // static FILE *part16_trace = 0, *part32_trace = 0, *part64_trace = 0;
+    // if(part16_trace == 0) {
+    //    part16_trace = fopen("/tmp/part16-trace.txt","w");
+    // }
+    // if(part32_trace == 0) {
+    //    part32_trace = fopen("/tmp/part32-trace.txt","w");
+    // }
+    // if(part64_trace == 0) {
+    //    part64_trace = fopen("/tmp/part64-trace.txt","w");
+    // }
     uint32_t blk_idx_mds               = 0;
     uint32_t d1_blocks_accumlated      = 0;
     int      skip_next_nsq             = 0;
     int      skip_next_sq              = 0;
+    int      skip_next_jnd             = 0;
+    uint32_t next_jnd_non_skip_blk_idx_mds = 0;
     uint32_t next_non_skip_blk_idx_mds = 0;
     int64_t  depth_cost[NUMBER_OF_DEPTH]       = {-1, -1, -1, -1, -1, -1};
     uint64_t nsq_cost[NUMBER_OF_SHAPES]        = {MAX_CU_COST,
@@ -8158,29 +8177,39 @@ EB_EXTERN EbErrorType mode_decision_sb(SequenceControlSet *scs_ptr, PictureContr
             (uint16_t)leaf_data_ptr
                 ->split_flag; //mdc indicates smallest or non valid CUs with split flag=
         blk_ptr->qp          = context_ptr->qp;
-        context_ptr->md_local_blk_unit[blk_idx_mds].best_d1_blk = blk_idx_mds;
-        if (jnd_trace_flag == 0) {
-            jnd_trace_flag = -1;
-            int p_sb_index = 0;
-            fprintf(jnd_trace, "sb_index = %d\n", p_sb_index);
-            fprintf(jnd_trace, "64x64: %6.2f\n", pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][0]);
-            fprintf(jnd_trace, "32x32: %6.2f, %6.2f, %6.2f, %6.2f\n", pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][1], pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][2],
-                                                                      pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][3], pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][4]);
-            fprintf(jnd_trace, "\n16x16:\n");
-            for (int r = 0; r < 4; ++r) {
-                for (int c = 0; c < 4; ++c) {
-                    fprintf(jnd_trace, "%6.2f, ", pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][5 + r * 8 + c]);
-                }
-                fprintf(jnd_trace, "\n");
-            }
-            fprintf(jnd_trace, "\n8x8:\n");
-            for (int r = 0; r < 8; ++r) {
-                for (int c = 0; c < 8; ++c) {
-                    fprintf(jnd_trace, "%6.2f, ", pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][21 + r * 8 + c]);
-                }
-                fprintf(jnd_trace, "\n");
-            }
+#ifdef ENABLE_JND
+        int qp_level = 0;
+        if (pcs_ptr->parent_pcs_ptr->frm_hdr.frame_type == KEY_FRAME) {
+            qp_level = clamp(context_ptr->qp / 5 - 1, 0, 3);        // 5, 10, 16, 22
+        } else {
+            qp_level = clamp((context_ptr->qp + 4) / 10 - 2, 0, 3); // 23, 31, 39, 47
         }
+#endif
+        context_ptr->md_local_blk_unit[blk_idx_mds].best_d1_blk = blk_idx_mds;
+        // if (jnd_trace_flag == 0) {
+        //     jnd_trace_flag = -1;
+        //     for (int p_sb_index = 0; p_sb_index < scs_ptr->sb_total_count; ++p_sb_index) {
+        //         fprintf(jnd_trace, "sb = %d, 64x64: %6.2f, 32x32: %6.2f, %6.2f, %6.2f, %6.2f\n",
+        //             p_sb_index, pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][0],
+        //             pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][1], pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][2],
+        //             pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][3], pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][4]);
+        //         fprintf(jnd_trace, "16x16:\n");
+        //         for (int r = 0; r < 4; ++r) {
+        //             for (int c = 0; c < 4; ++c) {
+        //                 fprintf(jnd_trace, "%6.2f, ", pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][5 + r * 4 + c]);
+        //             }
+        //             fprintf(jnd_trace, "\n");
+        //         }
+        //     }
+
+        //     // fprintf(jnd_trace, "\n8x8:\n");
+        //     // for (int r = 0; r < 8; ++r) {
+        //     //     for (int c = 0; c < 8; ++c) {
+        //     //         fprintf(jnd_trace, "%6.2f, ", pcs_ptr->parent_pcs_ptr->jnd[p_sb_index][21 + r * 8 + c]);
+        //     //     }
+        //     //     fprintf(jnd_trace, "\n");
+        //     // }
+        // }
         if (leaf_data_ptr->tot_d1_blocks != 1) {
             // We need to get the index of the sq_block for each NSQ branch
             if (d1_first_block) {
@@ -8348,7 +8377,8 @@ EB_EXTERN EbErrorType mode_decision_sb(SequenceControlSet *scs_ptr, PictureContr
             // skip until we reach the next block @ the parent block depth
             if (blk_ptr->mds_idx >= next_non_skip_blk_idx_mds && skip_next_sq == 1)
                 skip_next_sq = 0;
-
+            if (blk_ptr->mds_idx >= next_jnd_non_skip_blk_idx_mds && skip_next_jnd == 1)
+                skip_next_jnd = 0;
 #if ENHANCED_SQ_WEIGHT
             uint8_t sq_weight_based_nsq_skip = update_skip_nsq_shapes(scs_ptr, pcs_ptr, context_ptr);
 #endif
@@ -8357,7 +8387,8 @@ EB_EXTERN EbErrorType mode_decision_sb(SequenceControlSet *scs_ptr, PictureContr
             if (pcs_ptr->parent_pcs_ptr->sb_geom[sb_addr].block_is_allowed[blk_ptr->mds_idx] &&
                 !skip_next_nsq && !skip_next_sq &&
                 !sq_weight_based_nsq_skip &&
-                !skip_next_depth) {
+                !skip_next_depth &&
+                !skip_next_jnd) {
 #else
             if (pcs_ptr->parent_pcs_ptr->sb_geom[sb_addr].block_is_allowed[blk_ptr->mds_idx] &&
                 !skip_next_nsq && !skip_next_sq && !auto_max_partition_block_skip) {
@@ -8382,7 +8413,7 @@ EB_EXTERN EbErrorType mode_decision_sb(SequenceControlSet *scs_ptr, PictureContr
                 context_ptr->md_local_blk_unit[context_ptr->blk_ptr->mds_idx].default_cost =
                     MAX_MODE_COST;
 #endif
-            } else if (skip_next_sq) {
+            } else if (skip_next_sq || skip_next_jnd) {
                 context_ptr->md_local_blk_unit[context_ptr->blk_ptr->mds_idx].cost =
                     (MAX_MODE_COST >> 10);
 #if ENHANCED_SQ_WEIGHT
@@ -8409,6 +8440,21 @@ EB_EXTERN EbErrorType mode_decision_sb(SequenceControlSet *scs_ptr, PictureContr
             }
         }
         skip_next_nsq = 0;
+#ifdef ENABLE_JND
+        if (blk_geom->bsize >= BLOCK_8X8 && !skip_next_jnd) {
+            float jnd = get_jnd_index(pcs_ptr, context_ptr->blk_geom, context_ptr->sb_index);
+            if ((blk_geom->bsize == BLOCK_16X16 && jnd < th_16[qp_level]) ||
+                (blk_geom->bsize == BLOCK_32X32 && jnd < th_32[qp_level]) ||
+                (blk_geom->bsize == BLOCK_64X64 && jnd < th_64[qp_level])) {
+                skip_next_jnd = 1;
+                next_jnd_non_skip_blk_idx_mds =
+                    blk_idx_mds +
+                    ns_depth_offset[scs_ptr->seq_header.sb_size == BLOCK_128X128]
+                                [context_ptr->blk_geom->depth];
+            } else
+                skip_next_jnd = 0;
+        }
+#endif
         if (blk_geom->nsi + 1 == blk_geom->totns) {
             nsq_cost[context_ptr->blk_geom->shape] =
                 d1_non_square_block_decision(context_ptr, d1_block_itr);
@@ -8522,6 +8568,40 @@ EB_EXTERN EbErrorType mode_decision_sb(SequenceControlSet *scs_ptr, PictureContr
         sb_ptr->depth_cost[depth_idx] =
             depth_cost[depth_idx] < 0 ? MAX_MODE_COST : depth_cost[depth_idx];
     }
+    // fprintf(part64_trace, "POC = %lu, sb = %d\n%d\n%.2f\n", pcs_ptr->picture_number, context_ptr->sb_index,
+    //         context_ptr->md_blk_arr_nsq[0].part, pcs_ptr->parent_pcs_ptr->jnd[context_ptr->sb_index][0]);
+    // fprintf(part32_trace, "POC = %lu, sb = %d\n%d,%d,%d,%d\n%.2f,%.2f,%.2f,%.2f\n", pcs_ptr->picture_number, context_ptr->sb_index,
+    //         context_ptr->md_blk_arr_nsq[25].part, context_ptr->md_blk_arr_nsq[25+269].part,
+    //         context_ptr->md_blk_arr_nsq[25+269*2].part, context_ptr->md_blk_arr_nsq[25+269*3].part,
+    //         pcs_ptr->parent_pcs_ptr->jnd[context_ptr->sb_index][1], pcs_ptr->parent_pcs_ptr->jnd[context_ptr->sb_index][2],
+    //         pcs_ptr->parent_pcs_ptr->jnd[context_ptr->sb_index][3], pcs_ptr->parent_pcs_ptr->jnd[context_ptr->sb_index][4]);
+    // int jnd_blk_it = 50;
+    // fprintf(part16_trace, "POC = %lu, sb = %d\n%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
+    //     pcs_ptr->picture_number, context_ptr->sb_index,
+    //     context_ptr->md_blk_arr_nsq[jnd_blk_it].part, context_ptr->md_blk_arr_nsq[jnd_blk_it+61].part,
+    //     context_ptr->md_blk_arr_nsq[jnd_blk_it+61*2].part, context_ptr->md_blk_arr_nsq[jnd_blk_it+61*3].part,
+    //     context_ptr->md_blk_arr_nsq[jnd_blk_it+269].part, context_ptr->md_blk_arr_nsq[jnd_blk_it+269+61].part,
+    //     context_ptr->md_blk_arr_nsq[jnd_blk_it+269+61*2].part, context_ptr->md_blk_arr_nsq[jnd_blk_it+269+61*3].part,
+    //     context_ptr->md_blk_arr_nsq[jnd_blk_it+269*2].part, context_ptr->md_blk_arr_nsq[jnd_blk_it+269*2+61].part,
+    //     context_ptr->md_blk_arr_nsq[jnd_blk_it+269*2+61*2].part, context_ptr->md_blk_arr_nsq[jnd_blk_it+269*2+61*3].part,
+    //     context_ptr->md_blk_arr_nsq[jnd_blk_it+269*3].part, context_ptr->md_blk_arr_nsq[jnd_blk_it+269*3+61].part,
+    //     context_ptr->md_blk_arr_nsq[jnd_blk_it+269*3+61*2].part, context_ptr->md_blk_arr_nsq[jnd_blk_it+269*3+61*3].part,
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+61), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+61*2), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+61*3), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269+61), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269+61*2), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269+61*3), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269*2), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269*2+61), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269*2+61*2), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269*2+61*3), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269*3), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269*3+61), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269*3+61*2), context_ptr->sb_index),
+    //     get_jnd_index(pcs_ptr, get_blk_geom_mds(jnd_blk_it+269*3+61*3), context_ptr->sb_index));
 
     return return_error;
 }

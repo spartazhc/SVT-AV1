@@ -33,6 +33,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define ENABLE_JND 1
+
 #define QPS_CHANGE_II            1 // Change the QP assignment for I
 #define NSQ_HV                      1 // skip NSQ partitions based on H vs V costs
 #define OMARK_LAMBDA                1 // 2. fix lambda calculation for HBD0

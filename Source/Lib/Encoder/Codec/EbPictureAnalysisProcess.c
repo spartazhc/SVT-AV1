@@ -2615,6 +2615,27 @@ EbErrorType compute_block_mean_compute_variance(
     return return_error;
 }
 
+float compute_max_diff(float num1, float num2, float num3, float num4) {
+    float b1, s1, b2, s2;
+    if (num1 > num2)  {
+        b1 = num1;
+        s1 = num2;
+    } else {
+        b1 = num2;
+        s1 = num1;
+    }
+    if (num3 > num4)  {
+        b2 = num3;
+        s2 = num4;
+    } else {
+        b2 = num4;
+        s2 = num3;
+    }
+    if (b1 < b2) b1 = b2; // max
+    if (s1 > s2) s1 = s2; // min
+    return (b1 - s1);
+}
+
 EbErrorType compute_block_jnd(
     PictureParentControlSet *pcs_ptr, // input parameter, Picture Control Set Ptr
     EbPictureBufferDesc *    input_padded_picture_ptr, // input parameter, Input Padded Picture
@@ -3591,76 +3612,76 @@ EbErrorType compute_block_jnd(
     pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_63] =
     (float)(la_of8x8_blocks[63] + cm_of8x8_blocks[63] - 0.3 * MIN(la_of8x8_blocks[63] , cm_of8x8_blocks[63]));
 
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_0] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_0] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_1] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_8] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_9]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_1] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_2] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_3] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_10] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_11]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_2] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_4] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_5] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_12] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_13]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_3] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_6] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_7] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_14] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_15]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_0] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_0], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_1],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_8], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_9]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_1] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_2], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_3],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_10], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_11]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_2] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_4], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_5],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_12], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_13]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_3] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_6], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_7],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_14], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_15]);
 
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_4] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_16] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_17] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_24] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_25]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_5] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_18] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_19] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_26] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_27]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_6] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_20] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_21] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_28] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_29]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_7] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_22] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_23] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_30] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_31]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_4] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_16], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_17],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_24], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_25]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_5] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_18], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_19],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_26], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_27]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_6] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_20], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_21],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_28], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_29]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_7] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_22], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_23],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_30], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_31]);
 
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_8] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_32] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_33] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_40] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_41]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_9] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_34] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_35] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_42] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_43]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_10] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_36] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_37] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_44] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_45]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_11] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_38] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_39] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_46] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_47]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_8] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_32], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_33],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_40], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_41]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_9] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_34], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_35],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_42], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_43]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_10] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_36], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_37],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_44], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_45]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_11] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_38], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_39],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_46], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_47]);
 
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_12] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_48] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_49] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_56] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_57]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_13] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_50] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_51] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_58] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_59]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_14] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_52] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_53] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_60] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_61]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_15] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_54] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_55] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_62] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_63]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_12] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_48], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_49],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_56], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_57]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_13] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_50], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_51],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_58], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_59]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_14] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_52], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_53],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_60], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_61]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_15] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_54], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_55],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_62], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_8x8_63]);
 
     // 32x32
 
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_0] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_0] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_1] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_4] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_5]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_1] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_2] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_3] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_6] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_7]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_2] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_8] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_9] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_12] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_13]) / 4;
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_3] =
-        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_10] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_11] +
-         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_14] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_15]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_0] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_0], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_1],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_4], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_5]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_1] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_2], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_3],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_6], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_7]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_2] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_8], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_9],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_12], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_13]);
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_3] = compute_max_diff
+        (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_10], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_11],
+         pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_14], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_16x16_15]);
 
     // 64x64
-    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_64x64] = (pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_0] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_1] +
-                            pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_2] + pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_3]) / 4;
+    pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_64x64] = compute_max_diff(pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_0], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_1],
+                            pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_2], pcs_ptr->jnd[sb_index][ME_TIER_ZERO_PU_32x32_3]);
 
 
 
@@ -3969,9 +3990,8 @@ void compute_picture_spatial_statistics(SequenceControlSet *     scs_ptr,
 
     // Variance
     pic_tot_variance = 0;
-    float jnd_min = 999, jnd_max = 0, pic_tot_jnd = 0;
-    uint32_t jnd_cnt0=0, jnd_cnt1 = 0, jnd_cnt2 = 0, jnd_cnt3 = 0;
-
+    float pic_tot_jnd = 0;
+    // double tot_duration = 0;
     for (sb_index = 0; sb_index < pcs_ptr->sb_total_count; ++sb_index) {
         SbParams *sb_params = &pcs_ptr->sb_params_array[sb_index];
 
@@ -3990,22 +4010,21 @@ void compute_picture_spatial_statistics(SequenceControlSet *     scs_ptr,
 
         compute_block_mean_compute_variance(
             scs_ptr, pcs_ptr, input_padded_picture_ptr, sb_index, input_luma_origin_index);
-
-
+#ifdef ENABLE_JND
+        // uint64_t start_stime, start_utime;
+        // uint64_t end_stime, end_utime;
+        // double duration;
+        // eb_start_time(&start_stime, &start_utime);
         compute_block_jnd(pcs_ptr, input_padded_picture_ptr, sb_index, input_luma_origin_index);
+        // eb_finish_time(&end_stime, &end_utime);
+        // eb_compute_overall_elapsed_time_realms(start_stime, start_utime,
+        //                                     end_stime, end_utime, &duration);
+        // tot_duration += duration;
 
-        for (int i = 0; i < 85; ++i) {
-            jnd_min = MIN(jnd_min, pcs_ptr->jnd[sb_index][i]);
-            jnd_max = MAX(jnd_max, pcs_ptr->jnd[sb_index][i]);
-            if (pcs_ptr->jnd[sb_index][i] <= 2.485) ++jnd_cnt0;
-            else if (pcs_ptr->jnd[sb_index][i] <= 4.97) ++jnd_cnt1;
-            else if (pcs_ptr->jnd[sb_index][i] >= 9.94) ++jnd_cnt3;
-            else ++jnd_cnt2;
+        for (int i = 21; i < 85; ++i) {
+            pic_tot_jnd += pcs_ptr->jnd[sb_index][i];
         }
-
-        pic_tot_jnd += pcs_ptr->jnd[sb_index][0];
-
-
+#endif
         if (sb_params->is_complete_sb) {
             compute_chroma_block_mean(scs_ptr,
                                       pcs_ptr,
@@ -4020,11 +4039,9 @@ void compute_picture_spatial_statistics(SequenceControlSet *     scs_ptr,
         pic_tot_variance += (pcs_ptr->variance[sb_index][RASTER_SCAN_CU_INDEX_64x64]);
     }
 
-    printf("jnd_avg = %.2f, jnd_max = %.2f, jnd_min = %.3f\n", pic_tot_jnd / sb_total_count, jnd_max, jnd_min);
-    printf("jnd_cnt0 = %d, jnd_cnt1 = %d, jnd_cnt2 = %d, jnd_cnt3 = %d\n", jnd_cnt0, jnd_cnt1, jnd_cnt2, jnd_cnt3);
-    pcs_ptr->pic_avg_jnd = (float)(pic_tot_jnd / sb_total_count);
+    pcs_ptr->pic_avg_jnd = (float)(pic_tot_jnd / (sb_total_count * 64));
     pcs_ptr->pic_avg_variance = (uint16_t)(pic_tot_variance / sb_total_count);
-
+    // fprintf(stderr,"compute_block_jnd_time = %.2f\n", tot_duration);
     return;
 }
 
@@ -4215,23 +4232,8 @@ void gathering_picture_statistics(SequenceControlSet *scs_ptr, PictureParentCont
                                       sum_avg_intensity_ttl_regions_cb,
                                       sum_avg_intensity_ttl_regions_cr);
 
-    uint64_t start_stime, start_utime;
-    uint64_t end_stime, end_utime;
-    double duration;
-    eb_start_time(&start_stime, &start_utime);
     compute_picture_spatial_statistics(
         scs_ptr, pcs_ptr, input_picture_ptr, input_padded_picture_ptr, sb_total_count);
-
-
-    // uint64_t start_stime, start_utime;
-    // uint64_t end_stime, end_utime;
-    // double duration;
-    // eb_start_time(&start_stime, &start_utime);
-    // compute_jnd_statistics(pcs_ptr, input_picture_ptr);
-    eb_finish_time(&end_stime, &end_utime);
-    eb_compute_overall_elapsed_time_ms(start_stime, start_utime,
-                                        end_stime, end_utime, &duration);
-    printf("jnd time = %.2f\n", duration);
 
     return;
 }
