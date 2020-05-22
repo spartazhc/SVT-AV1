@@ -19,6 +19,8 @@
 #include "EbObject.h"
 #include "EbLog.h"
 
+#define ENDLESS_STREAM
+
 typedef struct ResourceCoordinationContext {
     EbFifo *                       input_buffer_fifo_ptr;
     EbFifo *                       resource_coordination_results_output_fifo_ptr;
@@ -1091,7 +1093,7 @@ void *resource_coordination_kernel(void *input_ptr) {
                     }
                 }
             }
-
+#ifndef ENDLESS_STREAM
             // Get Empty Output Results Object
             if (pcs_ptr->picture_number > 0 && (prev_pcs_wrapper_ptr != NULL)) {
                 ((PictureParentControlSet *)prev_pcs_wrapper_ptr->object_ptr)
@@ -1111,6 +1113,23 @@ void *resource_coordination_kernel(void *input_ptr) {
                 eb_post_full_object(output_wrapper_ptr);
             }
             prev_pcs_wrapper_ptr = pcs_wrapper_ptr;
+#else
+            if (pcs_ptr->picture_number == 60)
+                ((PictureParentControlSet *)pcs_wrapper_ptr->object_ptr)->end_of_sequence_flag = EB_TRUE;
+            eb_get_empty_object(context_ptr->resource_coordination_results_output_fifo_ptr,
+                                    &output_wrapper_ptr);
+            out_results_ptr = (ResourceCoordinationResults *)output_wrapper_ptr->object_ptr;
+            out_results_ptr->pcs_wrapper_ptr = pcs_wrapper_ptr;
+            // since overlay frame has the end of sequence set properly, set the end of sequence to true in the alt ref picture
+            if (((PictureParentControlSet *)pcs_wrapper_ptr->object_ptr)->is_overlay &&
+                end_of_sequence_flag)
+                ((PictureParentControlSet *)pcs_wrapper_ptr->object_ptr)
+                    ->alt_ref_ppcs_ptr->end_of_sequence_flag = EB_TRUE;
+            // Post the finished Results Object
+            eb_add_time_entry(EB_RESOURCE, EB_TASK0, EB_TASK0, pcs_ptr->picture_number, -1, -1,
+                            pcs_ptr->start_time_seconds, pcs_ptr->start_time_u_seconds);
+            eb_post_full_object(output_wrapper_ptr);
+#endif
         }
     }
 

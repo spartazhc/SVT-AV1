@@ -15,6 +15,11 @@
 #include "EbSvtAv1ErrorCodes.h"
 #include "EbAppInputy4m.h"
 #include "EbTime.h"
+
+#define RE_SIMU
+#ifdef RE_SIMU
+#include <unistd.h>
+#endif
 /***************************************
  * Macros
  ***************************************/
@@ -949,6 +954,9 @@ AppExitConditionType process_input_buffer(EbConfig *config, EbAppContext *app_ca
             header_ptr->flags    = 0;
 
             // Send the picture
+#ifdef RE_SIMU
+            usleep(30*1000);
+#endif
             eb_svt_enc_send_picture(component_handle, header_ptr);
         }
 
