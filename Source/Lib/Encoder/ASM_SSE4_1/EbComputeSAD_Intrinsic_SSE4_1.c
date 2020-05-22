@@ -16,42 +16,79 @@
         y_best  = i;                   \
     }
 
+// uint32_t compute_bg8x8_sse4_intrin(
+//     uint8_t *input_samples, // input parameter, input samples Ptr
+//     uint32_t input_stride, // input parameter, input stride
+//     uint32_t input_area_width, // input parameter, input area width
+//     uint32_t input_area_height) // input parameter, input area height
+// {
+//     __m128i xmm1, xmm2, xmm3, xmm4, xmm_sum1, xmm_sum2, k1, k2, k3, k4;
+//     k1 = _mm_set_epi16(1, 1, 1, 2, 2, 1, 1, 1);
+//     k2 = _mm_set_epi16(1, 2, 2, 3, 3, 2, 2, 1);
+//     k3 = _mm_set_epi16(1, 2, 0, 3, 3, 0, 2, 1);
+//     k4 = _mm_set_epi16(1, 3, 3, 5, 5, 3, 3, 1);
+//     xmm1     = _mm_mullo_epi16(k1, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples))));
+//     xmm2     = _mm_mullo_epi16(k2, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + input_stride))));
+//     xmm3     = _mm_mullo_epi16(k3, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 2 * input_stride))));
+//     xmm4     = _mm_mullo_epi16(k4, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 3 * input_stride))));
+//     xmm1     = _mm_hadd_epi16(xmm1, xmm2);
+//     xmm3     = _mm_hadd_epi16(xmm3, xmm4);
+//     xmm_sum1 = _mm_hadd_epi16(xmm1, xmm3);
+
+//     input_samples += 4 * input_stride;
+//     xmm1     = _mm_mullo_epi16(k4, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples))));
+//     xmm2     = _mm_mullo_epi16(k3, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + input_stride))));
+//     xmm3     = _mm_mullo_epi16(k2, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 2 * input_stride))));
+//     xmm4     = _mm_mullo_epi16(k1, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 3 * input_stride))));
+//     xmm1     = _mm_hadd_epi16(xmm1, xmm2);
+//     xmm3     = _mm_hadd_epi16(xmm3, xmm4);
+//     xmm_sum2 = _mm_hadd_epi16(xmm1, xmm3);
+
+//     xmm_sum2 = _mm_hadd_epi16(xmm_sum1, xmm_sum2);
+//     xmm_sum2 = _mm_hadd_epi16(xmm_sum2, xmm_sum2);
+//     xmm_sum2 = _mm_hadd_epi16(xmm_sum2, xmm_sum2);
+//     xmm_sum2 = _mm_hadd_epi16(xmm_sum2, xmm_sum2);
+//     (void)input_area_width;
+//     (void)input_area_height;
+
+//     return (uint32_t)_mm_cvtsi128_si32(xmm_sum2) >> 23;
+// }
+
 uint32_t compute_bg8x8_sse4_intrin(
     uint8_t *input_samples, // input parameter, input samples Ptr
     uint32_t input_stride, // input parameter, input stride
     uint32_t input_area_width, // input parameter, input area width
     uint32_t input_area_height) // input parameter, input area height
 {
-    __m128i xmm1, xmm2, xmm3, xmm4, xmm_sum1, xmm_sum2, k1, k2, k3, k4;
+    __m128i xmm1, xmm2, xmm3, xmm4, xmm_sum, k1, k2, k3, k4;
     k1 = _mm_set_epi16(1, 1, 1, 2, 2, 1, 1, 1);
     k2 = _mm_set_epi16(1, 2, 2, 3, 3, 2, 2, 1);
     k3 = _mm_set_epi16(1, 2, 0, 3, 3, 0, 2, 1);
     k4 = _mm_set_epi16(1, 3, 3, 5, 5, 3, 3, 1);
-    xmm1     = _mm_mullo_epi16(k1, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples))));
-    xmm2     = _mm_mullo_epi16(k2, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + input_stride))));
-    xmm3     = _mm_mullo_epi16(k3, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 2 * input_stride))));
-    xmm4     = _mm_mullo_epi16(k4, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 3 * input_stride))));
-    xmm1     = _mm_hadd_epi16(xmm1, xmm2);
-    xmm3     = _mm_hadd_epi16(xmm3, xmm4);
-    xmm_sum1 = _mm_hadd_epi16(xmm1, xmm3);
-
+    xmm1     = _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples)));
+    xmm2     = _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + input_stride)));
+    xmm3     = _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 2 * input_stride)));
+    xmm4     = _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 3 * input_stride)));
     input_samples += 4 * input_stride;
-    xmm1     = _mm_mullo_epi16(k4, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples))));
-    xmm2     = _mm_mullo_epi16(k3, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + input_stride))));
-    xmm3     = _mm_mullo_epi16(k2, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 2 * input_stride))));
-    xmm4     = _mm_mullo_epi16(k1, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 3 * input_stride))));
+    xmm4     = _mm_add_epi16(xmm4, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples))));
+    xmm3     = _mm_add_epi16(xmm3, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + input_stride))));
+    xmm2     = _mm_add_epi16(xmm2, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 2 * input_stride))));
+    xmm1     = _mm_add_epi16(xmm1, _mm_cvtepu8_epi16(_mm_loadl_epi64((__m128i *)(input_samples + 3 * input_stride))));
+    xmm1     = _mm_mullo_epi16(k1, xmm1);
+    xmm2     = _mm_mullo_epi16(k2, xmm2);
+    xmm3     = _mm_mullo_epi16(k3, xmm3);
+    xmm4     = _mm_mullo_epi16(k4, xmm4);
+
     xmm1     = _mm_hadd_epi16(xmm1, xmm2);
     xmm3     = _mm_hadd_epi16(xmm3, xmm4);
-    xmm_sum2 = _mm_hadd_epi16(xmm1, xmm3);
-
-    xmm_sum2 = _mm_hadd_epi16(xmm_sum1, xmm_sum2);
-    xmm_sum2 = _mm_hadd_epi16(xmm_sum2, xmm_sum2);
-    xmm_sum2 = _mm_hadd_epi16(xmm_sum2, xmm_sum2);
-    xmm_sum2 = _mm_hadd_epi16(xmm_sum2, xmm_sum2);
+    xmm_sum = _mm_hadd_epi16(xmm1, xmm3);
+    xmm_sum = _mm_hadd_epi16(xmm_sum, xmm_sum);
+    xmm_sum = _mm_hadd_epi16(xmm_sum, xmm_sum);
+    xmm_sum = _mm_hadd_epi16(xmm_sum, xmm_sum);
     (void)input_area_width;
     (void)input_area_height;
 
-    return (uint32_t)_mm_cvtsi128_si32(xmm_sum2) >> 23;
+    return (uint32_t)_mm_cvtsi128_si32(xmm_sum) >> 23;
 }
 
 void ext_sad_calculation_32x32_64x64_sse4_intrin(uint32_t *p_sad16x16, uint32_t *p_best_sad_32x32,
