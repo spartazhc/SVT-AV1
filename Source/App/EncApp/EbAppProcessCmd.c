@@ -970,7 +970,7 @@ AppExitConditionType process_input_buffer(EbConfig *config, EbAppContext *app_ca
             header_ptr->p_buffer      = NULL;
             header_ptr->pic_type      = EB_AV1_INVALID_PICTURE;
 
-            eb_svt_enc_send_picture(component_handle, header_ptr);
+            // eb_svt_enc_send_picture(component_handle, header_ptr);
         }
 
         return_value =
